@@ -1,0 +1,32 @@
+# Ignore environment variables
+.env
+.env.local
+
+# Node modules
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Logs
+logs/
+*.log
+
+# Config (sensitive data)
+config/accounts.json
+config/settings.json
+
+# Cache
+.cache/
+*.tmp
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# IDE
+.vscode/
+.idea/
+*.sublime-workspace

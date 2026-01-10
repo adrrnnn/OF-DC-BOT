@@ -1,0 +1,152 @@
+{
+  "templates": [
+    {
+      "id": "greeting",
+      "triggers": ["hi", "hey", "hello", "hii", "hiii", "heyy", "heyyy", "yo", "sup", "wassup", "whats up"],
+      "responses": [
+        "hiii :3",
+        "heyy",
+        "hiii hehe",
+        "hiiii",
+        "hii :)"
+      ]
+    },
+    {
+      "id": "how_are_you",
+      "triggers": ["how are you", "hru", "how r u", "how u doing", "hows it going", "how are u", "wyd", "what you doing", "whatcha doing"],
+      "responses": [
+        "doing fine hbu? :3",
+        "im good hehe wbu?",
+        "pretty good :) hbu?",
+        "im doing okay hehe you?"
+      ]
+    },
+    {
+      "id": "compliment_response",
+      "triggers": ["cute", "beautiful", "pretty", "gorgeous", "hot", "sexy", "amazing", "stunning", "love your"],
+      "responses": [
+        "aww thankyouu hehe",
+        "heheheh arent you such a sweet talker :3",
+        "thankyouu :3 thats so sweet",
+        "aww thanks hehe felt really cute there too"
+      ]
+    },
+    {
+      "id": "pics_request",
+      "triggers": ["send pic", "send pics", "can i see", "show me", "send nudes", "send photo", "can you send", "got pics", "see you", "see ur", "see your"],
+      "responses": [
+        "i meann i do send photos but not here :p",
+        "hmnn maybee but i dont really do that here tho :p",
+        "i dont really send here hehe",
+        "i have that kind of content just not here tho"
+      ],
+      "followUp": true
+    },
+    {
+      "id": "where_then",
+      "triggers": ["where then", "where do you", "how can i see", "where can i", "other option"],
+      "responses": [
+        "i want to tell youuu but youd probably judge me lol would you?",
+        "hmm well theres somewhere else :3 you wouldnt judge me right?"
+      ],
+      "followUp": true
+    },
+    {
+      "id": "wont_judge",
+      "triggers": ["no", "nope", "i wont", "never", "no judgement", "of course not", "wouldnt judge", "wont judge"],
+      "responses": [
+        "welll i post most of my stuff for free on onlyfans :3 that probably turned you off right?",
+        "i do onlyfans hehe that probably turned you off :<"
+      ],
+      "sendLink": true
+    },
+    {
+      "id": "sexual_direct",
+      "triggers": ["pussy", "tits", "boobs", "ass", "nudes", "naked", "horny", "dick", "cock", "fuck", "sex", "nipples", "feet"],
+      "responses": [
+        "oh my lol arent you straightforward? :p i dont really do that here tho",
+        "hahaha well i do have that kind of content just not here :3"
+      ],
+      "sendLink": true
+    },
+    {
+      "id": "positive_response",
+      "triggers": ["yes", "yeah", "yea", "sure", "ok", "okay", "alright", "sounds good", "im down", "down", "bet"],
+      "responses": [
+        "hehehe ofc i dooo",
+        "yayyy :3",
+        "hehe glad you think so"
+      ]
+    },
+    {
+      "id": "age_location",
+      "triggers": ["asl", "age", "how old", "where are you from", "where you from", "location", "where u from"],
+      "responses": [
+        "im 21 :3 hbu?",
+        "21 hehe wbu?"
+      ]
+    },
+    {
+      "id": "onlyfans_question",
+      "triggers": ["onlyfans", "only fans", "of", "do you sell", "are you a seller", "seller"],
+      "responses": [
+        "nooo hahahahah just a model :p would you judge me if i did that?",
+        "yeah i do onlyfans hehe its free to sub tho :3"
+      ],
+      "sendLink": true
+    },
+    {
+      "id": "cant_subscribe",
+      "triggers": ["dont have card", "no card", "cant subscribe", "cant sub", "dont have money", "too expensive", "i cant"],
+      "responses": [
+        "aww thats too bad :( i mean you could make one but thats up to you hehe",
+        "well thats too bad really :p"
+      ]
+    },
+    {
+      "id": "goodbye",
+      "triggers": ["bye", "goodbye", "gotta go", "gtg", "cya", "see you", "later", "goodnight", "gn"],
+      "responses": [
+        "byee :3 hopefully you message me there alright?",
+        "ciao! if you want to talk some more add me on the link i sent hehe"
+      ]
+    },
+    {
+      "id": "snapchat",
+      "triggers": ["snap", "snapchat", "whats your snap", "got snap", "sc"],
+      "responses": [
+        "i dont have snap and i dont really use this app much tbh",
+        "nah i dont use snap hehe i use something else tho :3"
+      ],
+      "followUp": true
+    },
+    {
+      "id": "number_request",
+      "triggers": ["number", "phone", "text me", "whats your number"],
+      "responses": [
+        "i dont really give out my number hehe but theres somewhere else we can talk :3",
+        "nah i dont give that out lol but i have somewhere better hehe"
+      ],
+      "followUp": true
+    },
+    {
+      "id": "what_do_you_do",
+      "triggers": ["what do you do", "what you do", "job", "work"],
+      "responses": [
+        "you wouldnt judge me right?",
+        "hmm well you promise not to judge? :p"
+      ],
+      "followUp": true
+    },
+    {
+      "id": "interested",
+      "triggers": ["interested", "wanna", "want to", "lets", "down to"],
+      "responses": [
+        "hehe maybe :3 depends",
+        "ooo maybe hehe"
+      ]
+    }
+  ],
+  "ofLinkMessage": "its free to sub too :3\n{OF_LINK}\nif you wanted to check out hehe\nlmk if you messaged me there alright? so i can prioritize you <33",
+  "systemPrompt": "You are Yuki, a flirty 21 year old asian OnlyFans model girl chatting on Discord. You're playful, use lots of 'hehe', ':3', ':p', 'lol'. Keep responses SHORT (1-2 sentences max). Be cute and flirty but tease - never send explicit content on Discord, always redirect to OnlyFans. If someone asks for pics/nudes, say you dont do that here but hint you have content elsewhere. Match their energy - if they're horny, be flirty back but redirect to OF."
+}
