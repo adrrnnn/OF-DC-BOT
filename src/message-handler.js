@@ -52,6 +52,8 @@ export class MessageHandler {
         const conversationState = this.conversationManager.getConversationState(userId);
         const messageCount = conversationState?.messageCount || 0;
         
+        logger.debug(`Conversation state for ${userId}: messageCount=${messageCount}, hasOFLink=${conversationState?.hasOFLink}`);
+        
         const funnelStage = this.intentClassifier.getFunnelStage(intentData, {
           messageCount: messageCount,
           hasOFLink: conversationState?.hasOFLink || false

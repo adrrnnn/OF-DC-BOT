@@ -420,42 +420,48 @@ export class BrowserController {
         const msgs = [];
         const messageElements = Array.from(document.querySelectorAll('[role="article"]'));
 
-        // Just get the last N messages (most recent)
+        // Process last N messages
         for (const msg of messageElements.slice(-limit)) {
           try {
-            // Extract author name from span or strong tag
-            const authorElement = msg.querySelector('span[class*="username"], strong, [class*="author"]');
-            const author = authorElement?.textContent?.trim() || 'Unknown';
-
-            // Extract message content carefully - Discord embeds username — time date message
-            // We need to extract ONLY the message text, not the username/timestamp/date header
             const fullText = msg.textContent?.trim() || '';
             
-            // Look for the author name and em-dash pattern: "username — HH:MM[language] day, date time message"
-            // Example: "kuangg — 07:11воскресенье, 11 января 2026 г. в 07:11hi"
-            // The em-dash (—) is always followed by time, so look for text after ALL timestamps/dates
+            // Discord message format in DOM is: "Username HH:MM Message" or variations with dates
+            // We need to find the actual message content
             
-            let content = fullText;
+            // Split by newlines to find components
+            const lines = fullText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
             
-            // Remove author name and em-dash from start
-            if (author && author !== 'Unknown') {
-              const authorPattern = author.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*—';
-              content = content.replace(new RegExp('^' + authorPattern), '');
+            if (lines.length === 0) continue;
+            
+            let author = 'Unknown';
+            let content = '';
+            
+            // First line typically contains author name
+            if (lines.length > 0) {
+              author = lines[0];
             }
             
-            // Remove timestamp pattern (HH:MM or H:MM, optionally followed by Russian day names)
-            content = content.replace(/^\s*\d{1,2}:\d{2}/, '');
+            // Find the actual message by looking for non-timestamp/non-date lines
+            for (let i = lines.length - 1; i >= 0; i--) {
+              const line = lines[i];
+              
+              // Skip common metadata patterns
+              const isTimestamp = /^\d{1,2}:\d{2}$/.test(line);
+              const isDate = /^\d{1,2}\s+\w+\s+\d{4}/.test(line);
+              const isRussianDate = /^\d{1,2}\s+[а-яА-Я]+\s+\d{4}/.test(line);
+              const isDayOfWeek = /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|понедельник|вторник|среда|четверг|пятница|суббота|воскресенье)/.test(line);
+              const isTimeRange = /\d{1,2}:\d{2}.*\d{1,2}:\d{2}/.test(line);
+              
+              // If it's not metadata and has content, it's the message
+              if (!isTimestamp && !isDate && !isRussianDate && !isDayOfWeek && !isTimeRange && line.length > 2) {
+                content = line;
+                break;
+              }
+            }
             
-            // Remove day of week names in various languages
-            content = content.replace(/^\s*(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|понедельник|вторник|среда|четверг|пятница|суббота|воскресенье)/i, '');
+            // Clean up author (remove numbers/timestamps that might be mixed in)
+            author = author.replace(/\s*\d{1,2}:\d{2}.*$/, '').trim();
             
-            // Remove date patterns like "11 января 2026 г. в 07:11"
-            content = content.replace(/^\s*\d{1,2}\s+[а-яА-Я]+\s+\d{4}\s+г\.\s+в\s+\d{1,2}:\d{2}/, '');
-            content = content.replace(/^\s*\d{1,2}\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}.*?\d{1,2}:\d{2}/, '');
-            
-            // Final cleanup
-            content = content.trim();
-
             if (content.length > 0) {
               msgs.push({ author, content });
             }

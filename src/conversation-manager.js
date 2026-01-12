@@ -90,15 +90,35 @@ export class ConversationManager {
     return conv ? conv.ofLinkSent : false;
   }
 
-  // Get full conversation state for funnel decisions
   getConversationState(userId) {
     const conv = this.conversations.get(userId);
-    return conv ? {
+    
+    if (!conv) {
+      return null;
+    }
+    
+    // If conversation has been idle for more than 10 minutes, treat it as new
+    const tenMinutes = 10 * 60 * 1000;
+    const timeSinceStart = Date.now() - conv.startTime;
+    
+    if (timeSinceStart > tenMinutes) {
+      // Reset the conversation
+      this.conversations.set(userId, {
+        startTime: Date.now(),
+        lastMessageId: null,
+        messageCount: 0,
+        ofLinkSent: false
+      });
+      this.saveState();
+      return this.getConversationState(userId);
+    }
+    
+    return {
       messageCount: conv.messageCount,
       hasOFLink: conv.ofLinkSent,
       startTime: conv.startTime,
       lastMessageId: conv.lastMessageId
-    } : null;
+    };
   }
 
   endConversation(userId) {
