@@ -435,26 +435,46 @@ export class BrowserController {
     try {
       const messages = await this.page.evaluate((limit) => {
         const msgs = [];
+        const debug = { selectorsChecked: [], elementsFound: {} };
         
         // Try multiple selectors for messages
         let messageElements = Array.from(document.querySelectorAll('[role="article"]'));
+        debug.selectorsChecked.push('[role="article"]');
+        debug.elementsFound['[role="article"]'] = messageElements.length;
         
         // If [role="article"] doesn't work, try other common selectors
         if (messageElements.length === 0) {
           // Try generic div with message class patterns
           messageElements = Array.from(document.querySelectorAll('[data-qa-type="message"]'));
+          debug.selectorsChecked.push('[data-qa-type="message"]');
+          debug.elementsFound['[data-qa-type="message"]'] = messageElements.length;
         }
         if (messageElements.length === 0) {
-          // Try chat message elements
-          messageElements = Array.from(document.querySelectorAll('[class*="message"]'));
+          // Try looking for message containers
+          const containers = document.querySelectorAll('div[class*="container"], div[class*="message-group"], div[class*="chat"]');
+          messageElements = Array.from(containers);
+          debug.selectorsChecked.push('div[class*="container|message-group|chat"]');
+          debug.elementsFound['div[class*="..."]'] = messageElements.length;
         }
         if (messageElements.length === 0) {
-          // Last resort: look for any divs with text content in the chat area
-          const chatArea = document.querySelector('[data-qa-type="message-group"], [role="main"], main');
+          // Last resort: look for any divs in the main chat area
+          const chatArea = document.querySelector('[role="main"], main, [class*="chatContent"]');
           if (chatArea) {
-            messageElements = Array.from(chatArea.querySelectorAll('div[class*="contents"], div[class*="message"]'));
+            messageElements = Array.from(chatArea.querySelectorAll('div'));
+            debug.selectorsChecked.push('main/chatArea > div');
+            debug.elementsFound['main/chatArea > div'] = messageElements.length;
+            
+            // Filter to only divs with reasonable text length (potential messages)
+            messageElements = messageElements.filter(div => {
+              const text = div.textContent?.trim() || '';
+              return text.length > 10 && text.length < 5000;
+            });
+            debug.elementsFound['main/chatArea > div (filtered)'] = messageElements.length;
           }
         }
+
+        // Log debug info back
+        msgs._debug = debug;
 
         // Process last N messages
         for (const msg of messageElements.slice(-limit)) {
@@ -509,7 +529,9 @@ export class BrowserController {
       }, limit);
 
       if (messages.length === 0) {
-        logger.debug('getMessages: No messages extracted from DOM');
+        const debugInfo = messages._debug || {};
+        logger.debug(`getMessages: No messages extracted. Selectors checked: ${JSON.stringify(debugInfo.selectorsChecked || [])}`);
+        logger.debug(`getMessages: Elements found: ${JSON.stringify(debugInfo.elementsFound || {})}`);
       } else {
         logger.debug(`getMessages: Extracted ${messages.length} message(s): ${JSON.stringify(messages)}`);
       }
