@@ -446,62 +446,80 @@ export class BrowserController {
         // Process last N articles
         for (const article of articles.slice(-limit)) {
           try {
-            // Try to find author and message content
             let author = 'Unknown';
             let content = '';
             
-            // Look for author in nested elements (Discord uses role="img" for avatar + name)
-            const authorLink = article.querySelector('a[href*="/users/"]');
-            if (authorLink) {
-              author = authorLink.textContent?.trim() || 'Unknown';
+            // Get all text from the article
+            const fullText = article.textContent?.trim() || '';
+            
+            if (!fullText || fullText.length < 3) {
+              debug.errors.push('Empty or too short message');
+              continue;
             }
             
-            // Discord message content is typically in a span or div with the message text
-            // Look for common patterns
-            const messageContent = article.querySelector('[class*="content"]') || 
-                                 article.querySelector('div[class*="message"]') ||
-                                 article.querySelector('span[class*="text"]');
+            // Split by lines and filter empty lines
+            const lines = fullText.split('\n')
+              .map(l => l.trim())
+              .filter(l => l.length > 0);
             
-            if (messageContent) {
-              content = messageContent.textContent?.trim() || '';
+            if (lines.length === 0) continue;
+            
+            // First line usually contains the author name
+            // Format is usually: "username — HH:MM"
+            // or just "username"
+            const firstLine = lines[0];
+            const authorMatch = firstLine.match(/^([^\—\[\d:]+)/);
+            
+            if (authorMatch) {
+              author = authorMatch[1].trim();
             }
             
-            // If still no content, try getting all text and parsing it
-            if (!content || content.length < 3) {
-              const allText = article.textContent?.trim() || '';
-              if (allText.length > 0) {
-                const lines = allText.split('\n')
-                  .map(l => l.trim())
-                  .filter(l => l.length > 2);
-                
-                // Try to identify message content (skip timestamps, usernames, etc)
-                for (const line of lines) {
-                  // Skip obvious metadata
-                  if (/^\d{1,2}:\d{2}/.test(line) || /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)/.test(line)) {
-                    continue;
-                  }
-                  // Skip obvious usernames (short, no spaces usually)
-                  if (line === author || line.length < 3) {
-                    continue;
-                  }
-                  // This is likely the message
+            // Find actual message content by skipping metadata
+            // Look for the actual message text (not timestamps, dates, etc)
+            for (let i = lines.length - 1; i >= 0; i--) {
+              const line = lines[i];
+              
+              // Skip timestamps like "15:09", "15:11"
+              if (/^\d{1,2}:\d{2}/.test(line)) continue;
+              // Skip dates in Russian or English
+              if (/^\d{1,2}\s+(January|February|March|April|May|June|July|August|September|October|November|December|января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)/i.test(line)) continue;
+              // Skip day of week
+              if (/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|понедельник|вторник|среда|четверг|пятница|суббота|воскресенье)/i.test(line)) continue;
+              // Skip lines with only emoji or formatting
+              if (/^[—\[\]◉○●\d:]+$/.test(line)) continue;
+              // Skip lines that look like author info
+              if (line === author) continue;
+              
+              // Found the actual message
+              if (line.length > 1) {
+                content = line;
+                break;
+              }
+            }
+            
+            // Fallback: if no content found, use the last non-empty line that's not metadata
+            if (!content && lines.length > 1) {
+              for (let i = lines.length - 1; i >= 1; i--) {
+                const line = lines[i];
+                if (line.length > 2 && line !== author && !/^\d{1,2}:\d{2}/.test(line)) {
                   content = line;
                   break;
                 }
               }
             }
             
-            // Only add if we have content
-            if (content && content.length > 2 && author !== 'Unknown') {
-              msgs.push({ author, content });
-              debug.messagesExtracted++;
-            } else if (content && content.length > 2) {
-              // Add even if author is unknown, but we have content
+            // Clean up content - remove leading author name if present
+            if (content && content.startsWith(author)) {
+              content = content.substring(author.length).replace(/^[\s—\[\]]+/, '').trim();
+            }
+            
+            // Only add if we have meaningful content
+            if (content && content.length > 2) {
               msgs.push({ author, content });
               debug.messagesExtracted++;
             }
           } catch (e) {
-            debug.errors.push(`Error processing article: ${e.message}`);
+            debug.errors.push(`Error: ${e.message}`);
           }
         }
 
