@@ -47,39 +47,6 @@ export class BrowserController {
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
       );
 
-      // Store messages in window object for access from Puppeteer
-      await this.page.evaluateOnNewDocument(() => {
-        window.__discordMessages = {};
-        
-        // Intercept fetch to capture message API responses
-        const originalFetch = window.fetch;
-        window.fetch = async function(...args) {
-          const response = await originalFetch.apply(this, args);
-          const url = args[0];
-          
-          // Capture message endpoints
-          if (typeof url === 'string' && url.includes('/channels/') && url.includes('/messages')) {
-            try {
-              const cloned = response.clone();
-              const data = await cloned.json();
-              window.__discordMessages = data;
-              console.log('Captured messages:', data);
-            } catch (e) {
-              // continue
-            }
-          }
-          
-          return response;
-        };
-      });
-
-      // MONITOR API REQUESTS - Capture Discord API calls
-      this.page.on('response', (response) => {
-        if (response.url().includes('discord.com/api')) {
-          logger.debug(`API Response: ${response.url()} - Status: ${response.status()}`);
-        }
-      });
-
       // Disable automation detection
       await this.page.evaluateOnNewDocument(() => {
         Object.defineProperty(navigator, 'webdriver', { get: () => false });
@@ -457,27 +424,7 @@ export class BrowserController {
    */
   async getMessages(limit = 2) {
     try {
-      // APPROACH 1: Try to get messages from the captured API response
-      logger.debug('Checking for captured API messages...');
-      const capturedMessages = await this.page.evaluate(() => {
-        return window.__discordMessages || null;
-      });
-      
-      if (capturedMessages && Array.isArray(capturedMessages) && capturedMessages.length > 0) {
-        logger.debug(`Found ${capturedMessages.length} messages from API capture`);
-        const msgs = capturedMessages.slice(-limit).map(msg => ({
-          author: msg.author?.username || msg.author?.global_name || 'Unknown',
-          content: msg.content || ''
-        })).filter(m => m.content.length > 0);
-        
-        if (msgs.length > 0) {
-          logger.debug(`Extracted ${msgs.length} messages from API`);
-          return msgs;
-        }
-      }
-      
-      // APPROACH 2: Try DOM extraction as fallback
-      logger.debug('Falling back to DOM extraction...');
+      logger.debug('Attempting to extract messages from DOM...');
       
       const extractionResult = await this.page.evaluate((limit) => {
         const msgs = [];
