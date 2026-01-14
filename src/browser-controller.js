@@ -411,32 +411,37 @@ export class BrowserController {
    */
   async getMessages(limit = 2) {
     try {
-      // First, scroll to the bottom to ensure messages are rendered
+      // Aggressively scroll to load and render messages
       await this.page.evaluate(() => {
-        const chatArea = document.querySelector('[role="main"], main, [class*="chatContent"]');
+        // Find the scrollable chat container
+        const chatArea = document.querySelector('[role="main"]') || 
+                         document.querySelector('main') || 
+                         document.querySelector('[class*="chatContent"]');
+        
         if (chatArea) {
-          chatArea.scrollTop = chatArea.scrollHeight;
+          // Scroll to bottom multiple times to trigger lazy loading
+          for (let i = 0; i < 3; i++) {
+            chatArea.scrollTop = chatArea.scrollHeight;
+          }
         }
       });
 
-      // Wait a moment for rendering
-      await new Promise(r => setTimeout(r, 500));
+      // Wait longer for messages to render after scrolling
+      await new Promise(r => setTimeout(r, 1000));
 
       const messages = await this.page.evaluate((limit) => {
         const msgs = [];
         
-        // Strategy 1: Try [role="article"] (Discord's standard message element)
+        // Use [role="article"] - we know this works in Discord
         let messageElements = Array.from(document.querySelectorAll('[role="article"]'));
         
-        // Strategy 2: If nothing found, try to find message containers by looking for author + timestamp patterns
+        // Fallback: filter divs with content that looks like messages
         if (messageElements.length === 0) {
-          // Look for elements that look like messages (contain author + time + content)
           const allDivs = Array.from(document.querySelectorAll('div'));
           messageElements = allDivs.filter(div => {
             const text = div.textContent || '';
-            // Messages typically have newlines separating author/time/content
             return text.includes('\n') && text.length > 20 && text.length < 1000;
-          }).slice(-10); // Get last 10 potential messages
+          }).slice(-10);
         }
 
         // Process last N messages
