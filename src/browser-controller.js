@@ -47,6 +47,39 @@ export class BrowserController {
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
       );
 
+      // Store messages in window object for access from Puppeteer
+      await this.page.evaluateOnNewDocument(() => {
+        window.__discordMessages = {};
+        
+        // Intercept fetch to capture message API responses
+        const originalFetch = window.fetch;
+        window.fetch = async function(...args) {
+          const response = await originalFetch.apply(this, args);
+          const url = args[0];
+          
+          // Capture message endpoints
+          if (typeof url === 'string' && url.includes('/channels/') && url.includes('/messages')) {
+            try {
+              const cloned = response.clone();
+              const data = await cloned.json();
+              window.__discordMessages = data;
+              console.log('Captured messages:', data);
+            } catch (e) {
+              // continue
+            }
+          }
+          
+          return response;
+        };
+      });
+
+      // MONITOR API REQUESTS - Capture Discord API calls
+      this.page.on('response', (response) => {
+        if (response.url().includes('discord.com/api')) {
+          logger.debug(`API Response: ${response.url()} - Status: ${response.status()}`);
+        }
+      });
+
       // Disable automation detection
       await this.page.evaluateOnNewDocument(() => {
         Object.defineProperty(navigator, 'webdriver', { get: () => false });
@@ -389,6 +422,19 @@ export class BrowserController {
       // Wait for messages to be visible
       await new Promise(r => setTimeout(r, 1500));
       
+      // Debug: Check page status
+      const pageDebug = await this.page.evaluate(() => {
+        return {
+          title: document.title,
+          url: window.location.href,
+          readyState: document.readyState,
+          hasArticles: document.querySelectorAll('[role="article"]').length > 0,
+          articlesCount: document.querySelectorAll('[role="article"]').length,
+          hasChatArea: !!document.querySelector('[role="main"]'),
+        };
+      });
+      logger.debug(`openDM - Page status: ${JSON.stringify(pageDebug)}`);
+      
       // Make sure article elements are present
       try {
         await this.page.waitForSelector('[role="article"]', { timeout: 5000 }).catch(() => {
@@ -411,97 +457,113 @@ export class BrowserController {
    */
   async getMessages(limit = 2) {
     try {
-      // Scroll to trigger message rendering in Discord's virtual scroll
-      await this.page.evaluate(() => {
-        const chatArea = document.querySelector('[role="main"]') || document.querySelector('main');
-        if (chatArea) {
-          // Scroll up then down to force Discord to render all messages
-          chatArea.scrollTop = 0;
-          setTimeout(() => {
-            chatArea.scrollTop = chatArea.scrollHeight;
-          }, 100);
-        }
+      // APPROACH 1: Try to get messages from the captured API response
+      logger.debug('Checking for captured API messages...');
+      const capturedMessages = await this.page.evaluate(() => {
+        return window.__discordMessages || null;
       });
-
-      // WAIT FOR MESSAGES TO ACTUALLY APPEAR IN THE DOM
-      try {
-        await this.page.waitForFunction(
-          () => document.querySelectorAll('[role="article"]').length > 0,
-          { timeout: 5000 }
-        );
-      } catch (e) {
-        logger.debug('Messages did not appear in [role="article"] after 5 seconds');
+      
+      if (capturedMessages && Array.isArray(capturedMessages) && capturedMessages.length > 0) {
+        logger.debug(`Found ${capturedMessages.length} messages from API capture`);
+        const msgs = capturedMessages.slice(-limit).map(msg => ({
+          author: msg.author?.username || msg.author?.global_name || 'Unknown',
+          content: msg.content || ''
+        })).filter(m => m.content.length > 0);
+        
+        if (msgs.length > 0) {
+          logger.debug(`Extracted ${msgs.length} messages from API`);
+          return msgs;
+        }
       }
-
-      // Final wait for rendering
-      await new Promise(r => setTimeout(r, 1000));
-
-      const messages = await this.page.evaluate((limit) => {
+      
+      // APPROACH 2: Try DOM extraction as fallback
+      logger.debug('Falling back to DOM extraction...');
+      
+      const extractionResult = await this.page.evaluate((limit) => {
         const msgs = [];
+        const debug = {
+          articlesFound: 0,
+          messagesExtracted: 0,
+          errors: []
+        };
         
-        // Use [role="article"] - we know this works in Discord
-        let messageElements = Array.from(document.querySelectorAll('[role="article"]'));
+        // Get all article elements
+        const articles = Array.from(document.querySelectorAll('[role="article"]'));
+        debug.articlesFound = articles.length;
         
-        // Fallback: filter divs with content that looks like messages
-        if (messageElements.length === 0) {
-          const allDivs = Array.from(document.querySelectorAll('div'));
-          messageElements = allDivs.filter(div => {
-            const text = div.textContent || '';
-            return text.includes('\n') && text.length > 20 && text.length < 1000;
-          }).slice(-10);
+        if (articles.length === 0) {
+          debug.errors.push('No articles found');
+          return { messages: msgs, debug };
         }
 
-        // Process last N messages
-        for (const msg of messageElements.slice(-limit)) {
+        // Process last N articles
+        for (const article of articles.slice(-limit)) {
           try {
-            const fullText = msg.textContent?.trim() || '';
-            
-            if (!fullText) continue;
-            
-            // Split by newlines to find components
-            const lines = fullText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-            
-            if (lines.length === 0) continue;
-            
+            // Try to find author and message content
             let author = 'Unknown';
             let content = '';
             
-            // First line typically contains author name
-            if (lines.length > 0) {
-              author = lines[0];
+            // Look for author in nested elements (Discord uses role="img" for avatar + name)
+            const authorLink = article.querySelector('a[href*="/users/"]');
+            if (authorLink) {
+              author = authorLink.textContent?.trim() || 'Unknown';
             }
             
-            // Find the actual message by looking for non-timestamp/non-date lines
-            for (let i = lines.length - 1; i >= 0; i--) {
-              const line = lines[i];
-              
-              // Skip common metadata patterns
-              const isTimestamp = /^\d{1,2}:\d{2}$/.test(line);
-              const isDate = /^\d{1,2}\s+\w+\s+\d{4}/.test(line);
-              const isRussianDate = /^\d{1,2}\s+[а-яА-Я]+\s+\d{4}/.test(line);
-              const isDayOfWeek = /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|понедельник|вторник|среда|четверг|пятница|суббота|воскресенье)/.test(line);
-              const isTimeRange = /\d{1,2}:\d{2}.*\d{1,2}:\d{2}/.test(line);
-              
-              // If it's not metadata and has content, it's the message
-              if (!isTimestamp && !isDate && !isRussianDate && !isDayOfWeek && !isTimeRange && line.length > 2) {
-                content = line;
-                break;
+            // Discord message content is typically in a span or div with the message text
+            // Look for common patterns
+            const messageContent = article.querySelector('[class*="content"]') || 
+                                 article.querySelector('div[class*="message"]') ||
+                                 article.querySelector('span[class*="text"]');
+            
+            if (messageContent) {
+              content = messageContent.textContent?.trim() || '';
+            }
+            
+            // If still no content, try getting all text and parsing it
+            if (!content || content.length < 3) {
+              const allText = article.textContent?.trim() || '';
+              if (allText.length > 0) {
+                const lines = allText.split('\n')
+                  .map(l => l.trim())
+                  .filter(l => l.length > 2);
+                
+                // Try to identify message content (skip timestamps, usernames, etc)
+                for (const line of lines) {
+                  // Skip obvious metadata
+                  if (/^\d{1,2}:\d{2}/.test(line) || /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)/.test(line)) {
+                    continue;
+                  }
+                  // Skip obvious usernames (short, no spaces usually)
+                  if (line === author || line.length < 3) {
+                    continue;
+                  }
+                  // This is likely the message
+                  content = line;
+                  break;
+                }
               }
             }
             
-            // Clean up author (remove numbers/timestamps that might be mixed in)
-            author = author.replace(/\s*\d{1,2}:\d{2}.*$/, '').trim();
-            
-            if (content.length > 0) {
+            // Only add if we have content
+            if (content && content.length > 2 && author !== 'Unknown') {
               msgs.push({ author, content });
+              debug.messagesExtracted++;
+            } else if (content && content.length > 2) {
+              // Add even if author is unknown, but we have content
+              msgs.push({ author, content });
+              debug.messagesExtracted++;
             }
           } catch (e) {
-            // Skip this message
+            debug.errors.push(`Error processing article: ${e.message}`);
           }
         }
 
-        return msgs;
+        return { messages: msgs, debug };
       }, limit);
+      
+      logger.debug(`Extraction result: articles=${extractionResult.debug.articlesFound}, extracted=${extractionResult.debug.messagesExtracted}, errors=${extractionResult.debug.errors.join('; ')}`);
+
+      const messages = extractionResult.messages;
 
       if (messages.length === 0) {
         logger.debug('getMessages: No messages extracted - DOM may not have [role="article"] elements loaded');
