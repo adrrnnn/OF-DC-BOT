@@ -96,25 +96,11 @@ export class BrowserController {
    */
   async login(email, password) {
     try {
-      // Try to load cached cookies first
-      const loaded = await this.loadCookies();
-      if (loaded) {
-        await this.page.goto('https://discord.com/channels/@me', {
-          waitUntil: 'networkidle2',
-          timeout: 30000,
-        });
-
-        // Check if already logged in
-        const isLoggedIn = await this.page.evaluate(() => {
-          return document.querySelector('[class*="guilds"]') !== null;
-        });
-
-        if (isLoggedIn) {
-          this.isLoggedIn = true;
-          logger.info('Already logged in from cookies');
-          return true;
-        }
-      }
+      // Skip loading cached cookies - do fresh auth
+      // const loaded = await this.loadCookies();
+      // if (loaded) {
+      //   ... cookie check ...
+      // }
 
       // Go to Discord login
       logger.info('Navigating to Discord login');
