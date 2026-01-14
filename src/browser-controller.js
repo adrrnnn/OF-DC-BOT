@@ -411,48 +411,33 @@ export class BrowserController {
    */
   async getMessages(limit = 2) {
     try {
+      // First, scroll to the bottom to ensure messages are rendered
+      await this.page.evaluate(() => {
+        const chatArea = document.querySelector('[role="main"], main, [class*="chatContent"]');
+        if (chatArea) {
+          chatArea.scrollTop = chatArea.scrollHeight;
+        }
+      });
+
+      // Wait a moment for rendering
+      await new Promise(r => setTimeout(r, 500));
+
       const messages = await this.page.evaluate((limit) => {
         const msgs = [];
-        const debug = { selectorsChecked: [], elementsFound: {} };
         
-        // Try multiple selectors for messages
+        // Strategy 1: Try [role="article"] (Discord's standard message element)
         let messageElements = Array.from(document.querySelectorAll('[role="article"]'));
-        debug.selectorsChecked.push('[role="article"]');
-        debug.elementsFound['[role="article"]'] = messageElements.length;
         
-        // If [role="article"] doesn't work, try other common selectors
+        // Strategy 2: If nothing found, try to find message containers by looking for author + timestamp patterns
         if (messageElements.length === 0) {
-          // Try generic div with message class patterns
-          messageElements = Array.from(document.querySelectorAll('[data-qa-type="message"]'));
-          debug.selectorsChecked.push('[data-qa-type="message"]');
-          debug.elementsFound['[data-qa-type="message"]'] = messageElements.length;
+          // Look for elements that look like messages (contain author + time + content)
+          const allDivs = Array.from(document.querySelectorAll('div'));
+          messageElements = allDivs.filter(div => {
+            const text = div.textContent || '';
+            // Messages typically have newlines separating author/time/content
+            return text.includes('\n') && text.length > 20 && text.length < 1000;
+          }).slice(-10); // Get last 10 potential messages
         }
-        if (messageElements.length === 0) {
-          // Try looking for message containers
-          const containers = document.querySelectorAll('div[class*="container"], div[class*="message-group"], div[class*="chat"]');
-          messageElements = Array.from(containers);
-          debug.selectorsChecked.push('div[class*="container|message-group|chat"]');
-          debug.elementsFound['div[class*="..."]'] = messageElements.length;
-        }
-        if (messageElements.length === 0) {
-          // Last resort: look for any divs in the main chat area
-          const chatArea = document.querySelector('[role="main"], main, [class*="chatContent"]');
-          if (chatArea) {
-            messageElements = Array.from(chatArea.querySelectorAll('div'));
-            debug.selectorsChecked.push('main/chatArea > div');
-            debug.elementsFound['main/chatArea > div'] = messageElements.length;
-            
-            // Filter to only divs with reasonable text length (potential messages)
-            messageElements = messageElements.filter(div => {
-              const text = div.textContent?.trim() || '';
-              return text.length > 10 && text.length < 5000;
-            });
-            debug.elementsFound['main/chatArea > div (filtered)'] = messageElements.length;
-          }
-        }
-
-        // Log debug info back
-        msgs._debug = debug;
 
         // Process last N messages
         for (const msg of messageElements.slice(-limit)) {
@@ -507,11 +492,9 @@ export class BrowserController {
       }, limit);
 
       if (messages.length === 0) {
-        const debugInfo = messages._debug || {};
-        logger.debug(`getMessages: No messages extracted. Selectors checked: ${JSON.stringify(debugInfo.selectorsChecked || [])}`);
-        logger.debug(`getMessages: Elements found: ${JSON.stringify(debugInfo.elementsFound || {})}`);
+        logger.debug('getMessages: No messages extracted - DOM may not have [role="article"] elements loaded');
       } else {
-        logger.debug(`getMessages: Extracted ${messages.length} message(s): ${JSON.stringify(messages)}`);
+        logger.debug(`getMessages: Extracted ${messages.length} message(s): ${JSON.stringify(messages.slice(0, 2))}`);
       }
       
       return messages;
