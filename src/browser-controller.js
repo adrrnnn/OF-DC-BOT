@@ -307,7 +307,26 @@ export class BrowserController {
             seenIds.add(userId);
 
             const username = link.textContent?.trim() || 'User_' + userId.substring(0, 8);
-            links.push({ userId, username });
+            
+            // Check for unread indicator (usually a badge or highlight)
+            const listItem = link.closest('[role="listitem"], li, div[class*="item"]') || link.parentElement;
+            let isUnread = false;
+            
+            // Look for unread badge/indicator
+            if (listItem) {
+              // Check for visual indicators of unread
+              const hasUnreadBadge = listItem.querySelector('[class*="unread"], [class*="badge"], .mention-badge');
+              const hasUnreadClass = listItem.className.includes('unread') || listItem.className.includes('active');
+              const hasUnreadAttr = listItem.getAttribute('data-unread') === 'true';
+              
+              // Check if text is bold (unread indicator)
+              const styles = window.getComputedStyle(link);
+              const isBold = styles.fontWeight === '700' || styles.fontWeight === 'bold';
+              
+              isUnread = !!hasUnreadBadge || hasUnreadClass || hasUnreadAttr || isBold;
+            }
+            
+            links.push({ userId, username, isUnread });
           } catch (e) {
             // Skip
           }
@@ -316,7 +335,10 @@ export class BrowserController {
         return links;
       });
 
+      // Filter to only unread DMs
+      const unreadDMs = dmLinks.filter(dm => dm.isUnread);
       logger.debug(`Found ${dmLinks.length} total DMs in sidebar (${dmLinks.map(d => d.username).join(', ')})`);
+      logger.debug(`Found ${unreadDMs.length} unread DMs: ${unreadDMs.map(d => d.username).join(', ')}`);
 
       // If still no DMs found, there might be an issue with the sidebar
       if (dmLinks.length === 0) {
@@ -324,10 +346,10 @@ export class BrowserController {
         return [];
       }
 
-      // Return all DMs - let the main logic check which ones actually have new messages
+      // Return only unread DMs - let the main logic check which ones actually have new messages
       // This avoids navigating away from the sidebar
-      logger.info(`Found ${dmLinks.length} unread DM(s)`);
-      return dmLinks;
+      logger.info(`Found ${unreadDMs.length} unread DM(s)`);
+      return unreadDMs;
     } catch (error) {
       logger.error('Failed to get unread DMs', { error: error.message });
       // Try to get back to friends list
@@ -427,7 +449,26 @@ export class BrowserController {
     try {
       const messages = await this.page.evaluate((limit) => {
         const msgs = [];
-        const messageElements = Array.from(document.querySelectorAll('[role="article"]'));
+        
+        // Try multiple selectors for messages
+        let messageElements = Array.from(document.querySelectorAll('[role="article"]'));
+        
+        // If [role="article"] doesn't work, try other common selectors
+        if (messageElements.length === 0) {
+          // Try generic div with message class patterns
+          messageElements = Array.from(document.querySelectorAll('[data-qa-type="message"]'));
+        }
+        if (messageElements.length === 0) {
+          // Try chat message elements
+          messageElements = Array.from(document.querySelectorAll('[class*="message"]'));
+        }
+        if (messageElements.length === 0) {
+          // Last resort: look for any divs with text content in the chat area
+          const chatArea = document.querySelector('[data-qa-type="message-group"], [role="main"], main');
+          if (chatArea) {
+            messageElements = Array.from(chatArea.querySelectorAll('div[class*="contents"], div[class*="message"]'));
+          }
+        }
 
         // Process last N messages
         for (const msg of messageElements.slice(-limit)) {
