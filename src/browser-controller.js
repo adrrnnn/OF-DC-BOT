@@ -411,22 +411,29 @@ export class BrowserController {
    */
   async getMessages(limit = 2) {
     try {
-      // Aggressively scroll to load and render messages
+      // Scroll to trigger message rendering in Discord's virtual scroll
       await this.page.evaluate(() => {
-        // Find the scrollable chat container
-        const chatArea = document.querySelector('[role="main"]') || 
-                         document.querySelector('main') || 
-                         document.querySelector('[class*="chatContent"]');
-        
+        const chatArea = document.querySelector('[role="main"]') || document.querySelector('main');
         if (chatArea) {
-          // Scroll to bottom multiple times to trigger lazy loading
-          for (let i = 0; i < 3; i++) {
+          // Scroll up then down to force Discord to render all messages
+          chatArea.scrollTop = 0;
+          setTimeout(() => {
             chatArea.scrollTop = chatArea.scrollHeight;
-          }
+          }, 100);
         }
       });
 
-      // Wait longer for messages to render after scrolling
+      // WAIT FOR MESSAGES TO ACTUALLY APPEAR IN THE DOM
+      try {
+        await this.page.waitForFunction(
+          () => document.querySelectorAll('[role="article"]').length > 0,
+          { timeout: 5000 }
+        );
+      } catch (e) {
+        logger.debug('Messages did not appear in [role="article"] after 5 seconds');
+      }
+
+      // Final wait for rendering
       await new Promise(r => setTimeout(r, 1000));
 
       const messages = await this.page.evaluate((limit) => {
