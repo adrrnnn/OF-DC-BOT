@@ -293,26 +293,7 @@ export class BrowserController {
             seenIds.add(userId);
 
             const username = link.textContent?.trim() || 'User_' + userId.substring(0, 8);
-            
-            // Check for unread indicator (usually a badge or highlight)
-            const listItem = link.closest('[role="listitem"], li, div[class*="item"]') || link.parentElement;
-            let isUnread = false;
-            
-            // Look for unread badge/indicator
-            if (listItem) {
-              // Check for visual indicators of unread
-              const hasUnreadBadge = listItem.querySelector('[class*="unread"], [class*="badge"], .mention-badge');
-              const hasUnreadClass = listItem.className.includes('unread') || listItem.className.includes('active');
-              const hasUnreadAttr = listItem.getAttribute('data-unread') === 'true';
-              
-              // Check if text is bold (unread indicator)
-              const styles = window.getComputedStyle(link);
-              const isBold = styles.fontWeight === '700' || styles.fontWeight === 'bold';
-              
-              isUnread = !!hasUnreadBadge || hasUnreadClass || hasUnreadAttr || isBold;
-            }
-            
-            links.push({ userId, username, isUnread });
+            links.push({ userId, username });
           } catch (e) {
             // Skip
           }
@@ -321,10 +302,7 @@ export class BrowserController {
         return links;
       });
 
-      // Filter to only unread DMs
-      const unreadDMs = dmLinks.filter(dm => dm.isUnread);
       logger.debug(`Found ${dmLinks.length} total DMs in sidebar (${dmLinks.map(d => d.username).join(', ')})`);
-      logger.debug(`Found ${unreadDMs.length} unread DMs: ${unreadDMs.map(d => d.username).join(', ')}`);
 
       // If still no DMs found, there might be an issue with the sidebar
       if (dmLinks.length === 0) {
@@ -332,10 +310,10 @@ export class BrowserController {
         return [];
       }
 
-      // Return only unread DMs - let the main logic check which ones actually have new messages
-      // This avoids navigating away from the sidebar
-      logger.info(`Found ${unreadDMs.length} unread DM(s)`);
-      return unreadDMs;
+      // Return ALL DMs - let the main bot logic check which ones actually have new messages
+      // This is more reliable than trying to detect Discord's unread indicators
+      logger.info(`Found ${dmLinks.length} DM(s)`);
+      return dmLinks;
     } catch (error) {
       logger.error('Failed to get unread DMs', { error: error.message });
       // Try to get back to friends list
