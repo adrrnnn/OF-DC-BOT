@@ -400,8 +400,17 @@ export class BrowserController {
         timeout: 15000,
       });
       
-      // Wait for page to fully render
-      await new Promise(r => setTimeout(r, 1000));
+      // Wait for messages to be visible
+      await new Promise(r => setTimeout(r, 1500));
+      
+      // Make sure article elements are present
+      try {
+        await this.page.waitForSelector('[role="article"]', { timeout: 5000 }).catch(() => {
+          // It's ok if there are no articles (no messages yet)
+        });
+      } catch (e) {
+        // No messages visible yet, but that's ok
+      }
       
       logger.info('Opened DM', { userId });
       return true;
@@ -425,8 +434,7 @@ export class BrowserController {
           try {
             const fullText = msg.textContent?.trim() || '';
             
-            // Discord message format in DOM is: "Username HH:MM Message" or variations with dates
-            // We need to find the actual message content
+            if (!fullText) continue;
             
             // Split by newlines to find components
             const lines = fullText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
@@ -473,6 +481,12 @@ export class BrowserController {
         return msgs;
       }, limit);
 
+      if (messages.length === 0) {
+        logger.debug('getMessages: No messages extracted from DOM');
+      } else {
+        logger.debug(`getMessages: Extracted ${messages.length} message(s): ${JSON.stringify(messages)}`);
+      }
+      
       return messages;
     } catch (error) {
       logger.error('Failed to get messages: ' + error.message);

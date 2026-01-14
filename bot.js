@@ -438,13 +438,18 @@ class DiscordOFBot {
       // Get messages
       const messages = await this.browser.getMessages();
       if (messages.length === 0) {
+        logger.warn(`No messages found in DM with ${username}`);
         this.inConversationWith = null;
         return;
       }
 
+      logger.debug(`Found ${messages.length} message(s): ${JSON.stringify(messages)}`);
+
       // Get latest USER message (not our own)
       // Filter out: "You" (Discord's label), "unknown", and bot's own username
       const botUsername = this.browser.botUsername || 'You';
+      logger.debug(`Bot username: ${botUsername}`);
+      
       const latestUserMessage = messages
         .reverse()
         .find(msg => 
@@ -454,7 +459,7 @@ class DiscordOFBot {
         );
 
       if (!latestUserMessage) {
-        logger.debug('No user messages found');
+        logger.debug('No user messages found (all filtered as bot or unknown)');
         this.inConversationWith = null;
         return;
       }
