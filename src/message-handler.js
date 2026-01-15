@@ -1,5 +1,4 @@
 import { TemplateMatcher } from './template-matcher.js';
-import { IntentClassifier } from './intent-classifier.js';
 import { AIHandler } from './ai-handler.js';
 import { logger } from './logger.js';
 
@@ -18,7 +17,6 @@ import { logger } from './logger.js';
 export class MessageHandler {
   constructor(conversationManager) {
     this.templateMatcher = new TemplateMatcher();
-    this.intentClassifier = new IntentClassifier();
     this.aiHandler = new AIHandler();
     this.conversationManager = conversationManager;
     
@@ -31,8 +29,8 @@ export class MessageHandler {
 
   /**
    * Handle incoming DM - implements conversion funnel
-   * Priority: Intent Classification → Template Matcher → AI (last resort)
-   * Strategy: Minimize API calls by using scripts first
+   * Priority: Template Matcher → AI (no intent classifier)
+   * Strategy: Use pre-written scripts first, AI only when no template matches
    */
   async handleDM(userId, userMessage) {
     try {
@@ -47,15 +45,11 @@ export class MessageHandler {
         return null; // Don't send a response, just end conversation
       }
 
-      // Step 1: Classify intent (research-based, NO API call)
-      const intentData = this.intentClassifier.classifyIntent(userMessage);
-      logger.info(`Intent classified: ${intentData.intent} (confidence: ${(intentData.confidence * 100).toFixed(1)}%)`);
-
       let response;
       let source;
       let shouldSendLink = false;
 
-      // PRIORITY 1: Try template matching FIRST (hardcoded scripts are better than intent fallbacks)
+      // PRIORITY 1: Try template matching FIRST (word-by-word triggers)
       const match = this.templateMatcher.findMatch(userMessage);
       
       if (match && match.confidence >= 0.5) {
@@ -68,37 +62,9 @@ export class MessageHandler {
           shouldSendLink = true;
         }
       } 
-      // PRIORITY 2: Fall back to intent classifier (for complex interactions)
-      else if (intentData.confidence >= 0.4 && !intentData.requiresAI) {
-        const conversationState = this.conversationManager.getConversationState(userId);
-        const messageCount = conversationState?.messageCount || 0;
-        
-        logger.debug(`Conversation state for ${userId}: messageCount=${messageCount}, hasOFLink=${conversationState?.hasOFLink}`);
-        
-        const funnelStage = this.intentClassifier.getFunnelStage(intentData, {
-          messageCount: messageCount,
-          hasOFLink: conversationState?.hasOFLink || false
-        });
-
-        logger.info(`Funnel stage: ${funnelStage.stage} (mention_of: ${funnelStage.mention_of})`);
-
-        // Get response from intent classifier (script-based, NOT AI)
-        response = this.intentClassifier.getSuggestedResponse(intentData, funnelStage);
-        source = 'script_intent'; // Script response, not AI
-
-        // STRICT: Only send OF link if funnel stage explicitly says to AND user showed explicit interest
-        if (funnelStage.mention_of && 
-            (intentData.intent === 'HORNY_DIRECT' || 
-             intentData.intent === 'COMPLIMENT_SEXUAL' || 
-             intentData.intent === 'REQUEST_CONTENT' ||
-             intentData.intent === 'INQUIRY_BUSINESS')) {
-          shouldSendLink = true;
-          logger.info('OF link approved: explicit sexual intent detected');
-        }
-      }
-      // PRIORITY 3: Use AI (only if both templates and intent fail)
+      // PRIORITY 2: Use AI (only if template doesn't match)
       else {
-        logger.info('No script match found, switching to Gemini AI...');
+        logger.info('No template match found, switching to Gemini AI...');
         response = await this.aiHandler.generateResponse(
           userMessage,
           this.templateMatcher.getSystemPrompt()
