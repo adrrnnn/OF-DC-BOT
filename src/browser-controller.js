@@ -394,9 +394,28 @@ export class BrowserController {
    */
   async openDM(userId) {
     try {
-      await this.page.goto(`https://discord.com/channels/@me/${userId}`, {
-        waitUntil: 'domcontentloaded',
-      });
+      // Instead of goto(), click the DM link in the sidebar
+      // This is more reliable than direct navigation
+      const clicked = await this.page.evaluate((userId) => {
+        const link = document.querySelector(`a[href*="/channels/@me/${userId}"]`);
+        if (link) {
+          link.click();
+          return true;
+        }
+        return false;
+      }, userId);
+      
+      if (!clicked) {
+        logger.warn(`DM link not found in sidebar for ${userId}, trying direct navigation`);
+        // Fallback to goto if link not found
+        await this.page.goto(`https://discord.com/channels/@me/${userId}`, {
+          waitUntil: 'domcontentloaded',
+          timeout: 10000, // Add explicit timeout
+        });
+      }
+      
+      // Wait for page to settle after click/navigation
+      await new Promise(r => setTimeout(r, 1000));
       
       // Wait for messages to be visible - use a retry loop to ensure articles load
       logger.debug('Waiting for article elements to load...');
