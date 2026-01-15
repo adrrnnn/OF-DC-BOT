@@ -486,16 +486,27 @@ export class BrowserController {
             if (authorElement?.textContent) {
               author = authorElement.textContent.trim();
             } else {
-              // Fallback: extract from first line 
-              const firstLine = lines[0];
+              // Fallback: find first line that doesn't look like a date/timestamp
+              let firstValidLine = '';
+              for (const line of lines) {
+                // Skip timestamp lines like "[03:05]" or "03:05"
+                if (/^\[\d{1,2}:\d{2}\]/.test(line) || /^\d{1,2}:\d{2}/.test(line)) continue;
+                // Skip Russian day-of-week and date lines
+                if (/^(понедельник|вторник|среда|четверг|пятница|суббота|воскресенье|[а-яё]{5,},)/i.test(line)) continue;
+                // Found a non-date line
+                firstValidLine = line;
+                break;
+              }
+              
+              if (!firstValidLine) firstValidLine = lines[0]; // Fallback to first line if all are dates
               
               // Strategy 1: Look for "username HH:MM" or "username [HH:MM]" pattern
-              const timeMatch = firstLine.match(/^([^\d\[\]:]+?)\s+[\d\[\]]*[\d:]/);
+              const timeMatch = firstValidLine.match(/^([^\d\[\]:]+?)\s+[\d\[\]]*[\d:]/);
               if (timeMatch) {
                 author = timeMatch[1].trim();
               } else {
                 // Strategy 2: Look for username before dash separator
-                const dashMatch = firstLine.match(/^([^——\d\[\]]+?)(?:—|—|$)/);
+                const dashMatch = firstValidLine.match(/^([^——\d\[\]]+?)(?:—|—|$)/);
                 if (dashMatch && dashMatch[1].trim().length > 0) {
                   author = dashMatch[1].trim();
                 } else {
@@ -521,8 +532,11 @@ export class BrowserController {
             // CRITICAL: Validate author is not a date/timestamp/day-of-week
             // This catches corrupted extraction from multi-line messages
             // Invalid patterns: "пятница,", "15:09", "January 16", etc.
-            if (/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|понедельник|вторник|среда|четверг|пятница|суббота|воскресенье|[а-я]{9,},?|[a-z]{9,},?)$/i.test(author)) {
-              debug.errors.push(`Author is day-of-week (${author}), skipping`);
+            const dayOfWeekPattern = /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|понедельник|вторник|среда|четверг|пятница|суббота|воскресенье),?$/i;
+            const longRussianPattern = /^[а-яё]{5,},?$/i;  // Russian words 5+ chars (covers all day names and months)
+            
+            if (dayOfWeekPattern.test(author) || longRussianPattern.test(author)) {
+              debug.errors.push(`Author is day-of-week or Russian date (${author}), skipping`);
               continue;
             }
             
