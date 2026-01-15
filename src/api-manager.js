@@ -21,6 +21,17 @@ export class APIManager {
     // Load GPT Nano key (fallback provider)
     this.gptNanoKey = process.env.GPT_NANO_API_KEY || null;
 
+    // Track Gemini usage (MUST be initialized before logging)
+    this.geminiStats = this.geminiKeys.map((key, index) => ({
+      index: index,
+      key: key,
+      requests: 0,
+      errors: 0,
+      lastUsed: null,
+      rateLimited: false,
+      quotaExhausted: false
+    }));
+
     if (this.geminiKeys.length === 0) {
       logger.warn('No Gemini API keys found - will use templates only until GPT Nano available');
     } else {
@@ -35,17 +46,6 @@ export class APIManager {
     } else {
       logger.warn('GPT Nano: Not configured (add GPT_NANO_API_KEY to .env to enable)');
     }
-
-    // Track Gemini usage
-    this.geminiStats = this.geminiKeys.map((key, index) => ({
-      index: index,
-      key: key,
-      requests: 0,
-      errors: 0,
-      lastUsed: null,
-      rateLimited: false,
-      quotaExhausted: false
-    }));
 
     // Track which provider is active
     this.currentProvider = 'gemini'; // 'gemini' or 'gpt_nano'
