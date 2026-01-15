@@ -197,14 +197,29 @@ export class IntentClassifier {
       };
     }
 
-    // Later messages - ongoing conversation
+    // Later messages - ONLY mention OF if user shows explicit interest
+    // Don't auto-mention just because of message count
     if (messageCount >= 2 && !hasOFLink) {
-      // After some rapport, subtly mention OF
+      // Only mention OF if conversation shows sexual/flirty indicators
+      if (style.includes('teasing_escalate') || 
+          style.includes('flirty_acknowledge') || 
+          intent === 'HORNY_DIRECT' || 
+          intent === 'COMPLIMENT_SEXUAL' ||
+          intent === 'REQUEST_CONTENT') {
+        return {
+          stage: 'rapport_introduce_of',
+          mention_of: true,
+          directness: 'medium',
+          nextAction: 'send_link'
+        };
+      }
+
+      // Keep building rapport without OF mention yet
       return {
-        stage: 'rapport_introduce_of',
-        mention_of: true,
-        directness: 'medium',
-        nextAction: 'send_link'
+        stage: 'continue_conversation',
+        mention_of: false,
+        directness: 'low',
+        nextAction: 'await_follow_up'
       };
     }
 

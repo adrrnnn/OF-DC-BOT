@@ -65,12 +65,14 @@ export class MessageHandler {
         response = this.intentClassifier.getSuggestedResponse(intentData, funnelStage);
         source = 'script_intent'; // Script response, not AI
 
-        // Check if we should send OF link
-        if (funnelStage.mention_of && (intentData.intent === 'HORNY_DIRECT' || 
-            intentData.intent === 'COMPLIMENT_SEXUAL' || 
-            intentData.intent === 'REQUEST_CONTENT' ||
-            intentData.intent === 'INQUIRY_BUSINESS')) {
+        // STRICT: Only send OF link if funnel stage explicitly says to AND user showed explicit interest
+        if (funnelStage.mention_of && 
+            (intentData.intent === 'HORNY_DIRECT' || 
+             intentData.intent === 'COMPLIMENT_SEXUAL' || 
+             intentData.intent === 'REQUEST_CONTENT' ||
+             intentData.intent === 'INQUIRY_BUSINESS')) {
           shouldSendLink = true;
+          logger.info('OF link approved: explicit sexual intent detected');
         }
       } 
       // Step 3: Fallback to template matching (NO API call)
