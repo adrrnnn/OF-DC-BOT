@@ -477,7 +477,13 @@ class DiscordOFBot {
 
       logger.info(`User said: "${latestUserMessage.content}"`);
 
-      // Handle the message
+      // CRITICAL: Check if we already replied to this message (prevent double-response spam)
+      if (this.conversationManager.getLastMessageId(userId) === latestUserMessage.content) {
+        logger.debug(`⚠️ DUPLICATE CHECK: Already replied to this exact message - skipping to prevent spam`);
+        return;
+      }
+
+      // Handle the message (generates exactly 1 response)
       const response = await this.messageHandler.handleDM(
         userId,
         latestUserMessage.content
@@ -485,15 +491,16 @@ class DiscordOFBot {
 
       let messageSent = false;
       if (response) {
-        // Send response
+        // CRITICAL: Send exactly ONE response per user message
+        logger.debug(`📤 Sending 1 response (no spam): "${response.message.substring(0, 80)}..."`);
         const sent = await this.browser.sendMessage(response.message);
 
         if (sent) {
           logger.info(
-            `Response sent to ${username} (source: ${response.source}, hasOFLink: ${response.hasOFLink})`
+            `✅ 1 response sent to ${username} (source: ${response.source}, hasOFLink: ${response.hasOFLink})`
           );
           
-          // Track that we replied to this message (prevent double-replies)
+          // CRITICAL: Mark this message as replied-to (prevent any future duplicate responses)
           this.conversationManager.setLastMessageId(userId, latestUserMessage.content);
           messageSent = true;
         } else {
