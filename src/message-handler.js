@@ -36,6 +36,14 @@ export class MessageHandler {
     try {
       logger.info(`Message from ${userId}: "${userMessage}"`);
 
+      // CRITICAL: Check if we've already sent the OF link to this user
+      // If yes, CLOSE CHAT - don't respond anymore
+      const conversationData = this.conversationManager.getConversationState(userId);
+      if (conversationData && conversationData.ofLinkSent) {
+        logger.info(`🚫 Already sent OF link to ${userId} - IGNORING message, closing chat`);
+        return null; // Don't respond at all
+      }
+
       // CRITICAL: Check if message contains a link (user clicked OF link or sent their own)
       const hasLink = /https?:\/\/|www\.|\.com|\.io|\.co/i.test(userMessage);
       if (hasLink) {
