@@ -495,6 +495,8 @@ export class BrowserController {
               } else {
                 // If no separator, take first meaningful word (skip timestamps and date words)
                 const words = firstLine.split(/[\s—]+/).filter(w => {
+                  // Must be at least 2 chars (to avoid single letters)
+                  if (w.length < 2) return false;
                   // Skip timestamps (HH:MM format)
                   if (/^\d{1,2}:\d{2}/.test(w)) return false;
                   // Skip any pure digits (day of month, year fragments, etc)
@@ -511,6 +513,10 @@ export class BrowserController {
                   if (/^в\.?$/.test(w)) return false;
                   // Skip brackets with times like [21:05]
                   if (/^\[\d{1,2}:\d{2}\]$/.test(w)) return false;
+                  // CRITICAL: Skip common English words that might appear in message content
+                  // (its, all, my, the, free, when, etc.)
+                  if (/^(its|all|my|the|free|when|and|or|is|are|be|do|have|has|was|were|am|on|in|at|to|from|that|this|than|as|by|for|up|out|if|so|no|not|just|like|how|what|about|which|who|would|could|should|may|might|can|will|shall|have|has|been|being|be|doing|does|done|said|says|go|goes|make|makes|see|sees|know|knows|want|wants|think|thinks|try|tries|ask|asks|need|needs|feel|feels|find|finds|tell|tells|work|works|call|calls|come|comes|give|gives|find|finds|take|takes|use|uses|look|looks|talk|talks|its|she|he|it|they|we|you|me|him|her|them|us|them|yourself|myself|himself|herself|itself|themselves|ourselves)$/i.test(w)) return false;
+                  
                   return true;
                 });
                 if (words.length > 0) {
