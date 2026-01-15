@@ -117,10 +117,11 @@
       "id": "age_location",
       "triggers": ["asl", "age", "how old", "where are you from", "where you from", "location", "where u from", "how old are you", "ur age"],
       "responses": [
-        "im 21 💭 you",
-        "21 :p hbu",
-        "21 wbu"
-      ]
+        "all that info is on my OF hehe",
+        "youll find out everything there :p",
+        "its all part of the mystery baby"
+      ],
+      "sendLink": true
     },
     {
       "id": "onlyfans_question",
@@ -171,10 +172,11 @@
       "id": "what_do_you_do",
       "triggers": ["what do you do", "what you do", "job", "work", "profession", "career"],
       "responses": [
-        "you wouldnt judge me right?",
-        "well are you gonna judge me? :p"
+        "i do content creation hehe check it out",
+        "all about that on my OF :p",
+        "thats something youll see there hehe"
       ],
-      "followUp": true
+      "sendLink": true
     },
     {
       "id": "interested",
@@ -198,10 +200,11 @@
       "id": "name_question",
       "triggers": ["whats your name", "your name", "name", "who are you", "who r u"],
       "responses": [
-        "im yuki! wbu?",
-        "yuki :3 whats yours?",
-        "yuki! whats your name?"
-      ]
+        "youll find out more about me there hehe",
+        "all that stuff is on my OF :p",
+        "thats for you to discover hehe"
+      ],
+      "sendLink": true
     },
     {
       "id": "romantic_interest",
