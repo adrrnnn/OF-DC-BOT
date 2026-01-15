@@ -197,7 +197,8 @@ export class TemplateMatcher {
     const sexualKeywords = [
       'pussy', 'tits', 'boobs', 'ass', 'nudes', 'naked', 'horny', 
       'dick', 'cock', 'fuck', 'sex', 'nipples', 'feet', 'cum',
-      'send pic', 'show me', 'can i see', 'want to see'
+      'send pic', 'show me', 'can i see', 'want to see', 'send video', 'trade',
+      'trade pics', 'send vids', 'sext', 'nsfw', 'explicit', 'intimate'
     ];
     const lower = message.toLowerCase();
     return sexualKeywords.some(kw => lower.includes(kw));

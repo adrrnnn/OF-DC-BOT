@@ -574,13 +574,6 @@ export class BrowserController {
               continue;
             }
             
-            // CRITICAL: If message contains OF link, it's from the bot - SKIP IT
-            // This prevents the bot from re-processing its own OF link responses
-            if (fullText.includes('onlyfans.com') || fullText.includes('onlyfans') || /its\s+free\s+to\s+sub/i.test(fullText)) {
-              debug.errors.push('Message contains OF link or bot marker (its free to sub), skipping - this is a bot message');
-              continue;
-            }
-            
             // Find actual message content by skipping metadata
             // CRITICAL FIX: Remove Discord UI button text and React menu items
             for (let i = lines.length - 1; i >= 0; i--) {
