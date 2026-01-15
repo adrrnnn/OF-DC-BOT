@@ -507,41 +507,23 @@ export class BrowserController {
             }
             
             if (!author || author.length === 0) {
-              // Fallback: extract from first line (more reliable than before)
+              // Fallback: extract from first line
+              // Strategy 1: Look for pattern "username HH:MM" or "username — timestamp"
               const firstLine = lines[0];
-              // Look for username before timestamp separator (handles both — and em dash)
-              const match = firstLine.match(/^([^——\d\[\]]+?)(?:—|—|$)/);
-              if (match && match[1].trim().length > 0 && match[1].trim() !== 'четверг' && !/^[а-яё\s]+$/i.test(match[1].trim())) {
-                author = match[1].trim();
+              const timeMatch = firstLine.match(/^([^\d\[\]:]+?)\s+[\d\[\]]*[\d:]+/);
+              if (timeMatch && timeMatch[1].trim().length >= 2) {
+                author = timeMatch[1].trim();
               } else {
-                // If no separator, take first meaningful word (skip timestamps and date words)
-                const words = firstLine.split(/[\s—]+/).filter(w => {
-                  // Must be at least 2 chars (to avoid single letters)
-                  if (w.length < 2) return false;
-                  // Skip timestamps (HH:MM format)
-                  if (/^\d{1,2}:\d{2}/.test(w)) return false;
-                  // Skip any pure digits (day of month, year fragments, etc)
-                  if (/^\d+$/.test(w)) return false;
-                  // Skip day of week and date markers (with optional punctuation like comma)
-                  if (/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|понедельник|вторник|среда|четверг|пятница|суббота|воскресенье)[,\.]?$/i.test(w)) return false;
-                  // Skip months in Russian/English (with optional punctuation)
-                  if (/^(January|February|March|April|May|June|July|August|September|October|November|December|января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)[,\.]?$/i.test(w)) return false;
-                  // Skip years
-                  if (/^\d{4}$/.test(w)) return false;
-                  // Skip г. (Russian abbreviation for "year")
-                  if (/^г\.?$/.test(w)) return false;
-                  // Skip в. (Russian abbreviation for "at/in")
-                  if (/^в\.?$/.test(w)) return false;
-                  // Skip brackets with times like [21:05]
-                  if (/^\[\d{1,2}:\d{2}\]$/.test(w)) return false;
-                  // CRITICAL: Skip common English words that might appear in message content
-                  // (its, all, my, the, free, when, etc.)
-                  if (/^(its|all|my|the|free|when|and|or|is|are|be|do|have|has|was|were|am|on|in|at|to|from|that|this|than|as|by|for|up|out|if|so|no|not|just|like|how|what|about|which|who|would|could|should|may|might|can|will|shall|have|has|been|being|be|doing|does|done|said|says|go|goes|make|makes|see|sees|know|knows|want|wants|think|thinks|try|tries|ask|asks|need|needs|feel|feels|find|finds|tell|tells|work|works|call|calls|come|comes|give|gives|find|finds|take|takes|use|uses|look|looks|talk|talks|its|she|he|it|they|we|you|me|him|her|them|us|them|yourself|myself|himself|herself|itself|themselves|ourselves)$/i.test(w)) return false;
-                  
-                  return true;
-                });
+                // Strategy 2: Split by common separators and take first substantial word
+                const words = firstLine.split(/[\s—\[\]]+/).filter(w => w.length >= 2);
                 if (words.length > 0) {
-                  author = words[0];
+                  // Skip timestamp patterns like "02:54", "[02:54]"
+                  for (const w of words) {
+                    if (!/^\d{1,2}:\d{2}/.test(w) && !/^\d+$/.test(w)) {
+                      author = w;
+                      break;
+                    }
+                  }
                 }
               }
             }
