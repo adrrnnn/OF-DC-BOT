@@ -37,13 +37,13 @@
       "id": "greeting",
       "triggers": ["hi", "hey", "hello", "hii", "hiii", "heyy", "heyyy", "yo", "sup", "wassup", "whats up", "what's up", "how u", "hru", "hi there", "hey there", "hello there", "heya"],
       "responses": [
-        "hiii :3",
-        "heyy 😋",
-        "hiiii whatchu doing",
-        "heyyy",
-        "whats up cutie",
-        "hii 💕",
-        "heyy wuts up"
+        "hiii 💕",
+        "hey there 😊",
+        "whats up",
+        "hiiii",
+        "heyyy cutie",
+        "yo 😏",
+        "heyy whatchu up to"
       ]
     },
     {

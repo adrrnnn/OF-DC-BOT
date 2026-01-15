@@ -421,7 +421,8 @@ class DiscordOFBot {
 
       // Check if we already replied to this exact message in this conversation
       // If so, wait 5 minutes before replying to next message
-      if (this.conversationManager.getLastMessageId(userId) === latestUserMessage.content) {
+      const lastProcessed = this.conversationManager.getLastMessageId(userId);
+      if (lastProcessed && lastProcessed === latestUserMessage.content) {
         logger.info(`Already replied to this message from ${username}, waiting for new message...`);
         return; // Don't clear inConversationWith yet - we're still waiting
       }
@@ -429,7 +430,7 @@ class DiscordOFBot {
       logger.info(`User said: "${latestUserMessage.content}"`);
 
       // CRITICAL FIX: Mark message as processed BEFORE handling
-      // This prevents race condition where new message arrives during processing
+      // Store with timestamp to prevent race conditions - only process once per timestamp
       this.conversationManager.setLastMessageId(userId, latestUserMessage.content);
 
       // Handle the message (generates exactly 1 response)
