@@ -80,13 +80,6 @@ export class AIHandler {
    * Automatically tries Gemini first, falls back to GPT Nano if needed
    */
   async generateResponse(userMessage, systemPrompt) {
-    // Check if any provider is available
-    const status = this.providerFactory.getStatus();
-    if (!status.primary.available && !status.fallback.available) {
-      logger.warn('No available AI providers - using fallback');
-      return this.getFallbackResponse();
-    }
-
     try {
       // Build natural prompt using training context
       const conversationContext = this.buildConversationContext();
@@ -101,17 +94,62 @@ The user just said: "${userMessage}"
 
 Respond naturally in 1-2 short sentences. Keep it casual and friendly, like you're texting.`;
 
-      logger.info(`Making AI request using ${this.providerFactory.getProvider().getName()}`);
+      const provider = this.providerFactory.getProvider();
       
-      // Use provider factory - handles provider selection and fallback
-      const response = await this.providerFactory.generateResponse(prompt, systemPrompt);
+      if (!provider) {
+        logger.warn('No AI providers available - using contextual fallback');
+        return this.getContextualFallbackResponse(userMessage);
+      }
+
+      logger.info(`Making AI request using ${provider.getName()}`);
       
+      // Use the provider to generate response
+      const response = await provider.generateResponse(prompt, systemPrompt);
       return response;
 
     } catch (error) {
-      logger.warn(`AI error: ${error.message}`);
-      return this.getFallbackResponse();
+      logger.warn(`AI error (${error.message}) - trying fallback provider...`);
+      
+      // If we got an error, try the other provider
+      const provider = this.providerFactory.getProvider();
+      if (provider && provider.getName() !== 'Gemini') {
+        try {
+          logger.info(`Attempting fallback provider: ${provider.getName()}`);
+          const prompt = `You are responding in a Discord DM conversation. Be natural, casual, and conversational - like texting with a friend. The user just said: "${userMessage}". Respond naturally in 1-2 short sentences. Keep it casual and friendly, like you're texting.`;
+          const response = await provider.generateResponse(prompt, systemPrompt);
+          return response;
+        } catch (fallbackError) {
+          logger.warn(`Fallback provider also failed: ${fallbackError.message}`);
+        }
+      }
+      
+      return this.getContextualFallbackResponse(userMessage);
     }
+  }
+
+  /**
+   * Contextual fallback responses based on user message
+   */
+  getContextualFallbackResponse(userMessage) {
+    const msg = userMessage.toLowerCase();
+    
+    // Greetings
+    if (/^(hi|hey|hello|hii|hiii|heyy|heyyy|yo|sup|wassup|whats up|what's up|how u|hru)/.test(msg)) {
+      return ['hiii 💕', 'hey there 😊', 'whats up', 'hiiii', 'heyyy cutie', 'yo 😏'][Math.floor(Math.random() * 6)];
+    }
+    
+    // Questions
+    if (/\?/.test(msg)) {
+      return ['tell me more hehe', 'ooh interesting 😊', 'i like that 💕', 'hehe yeah 😏'][Math.floor(Math.random() * 4)];
+    }
+    
+    // Flirty/sexual content
+    if (/(trade|pics|pic|nudes|meet|hook up|horny|sexy|cum)/.test(msg)) {
+      return ['hmm depends hehe', 'interesting 😏', 'tell me more', 'ooh i like where this is going 😊'][Math.floor(Math.random() * 4)];
+    }
+    
+    // Default casual responses
+    return ['hehe sounds cool 💕', 'nice tell me about it', 'ooh tell me more 😊', 'hehe yeah 😏'][Math.floor(Math.random() * 4)];
   }
 
   /**
