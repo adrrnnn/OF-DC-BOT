@@ -182,9 +182,10 @@
       "id": "interested",
       "triggers": ["interested", "wanna", "want to", "lets", "down to", "interested in", "would you"],
       "responses": [
-        "hehe maybe :3",
-        "ooo maybe",
-        "hmm depends hehe"
+        "ohhh interesting 😏 tell me more",
+        "you got my attention 💕",
+        "i kinda like where this is going hehe",
+        "ooo what did you have in mind"
       ]
     },
     {
@@ -249,15 +250,6 @@
         "i like chill music hehe",
         "depends on my mood :p",
         "a bit of everything hehe"
-      ]
-    },
-    {
-      "id": "random_question",
-      "triggers": ["what", "why", "how", "when", "who"],
-      "responses": [
-        "thats interesting hehe",
-        "hmm good point :p",
-        "ooo youre curious"
       ]
     },
     {

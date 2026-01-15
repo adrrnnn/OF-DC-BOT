@@ -511,7 +511,7 @@ export class BrowserController {
                   author = dashMatch[1].trim();
                 } else {
                   // Strategy 3: Just take first non-timestamp word
-                  const words = firstLine.split(/[\s—\[\]]+/);
+                  const words = firstValidLine.split(/[\s—\[\]]+/);
                   for (const w of words) {
                     // Skip timestamps and numbers
                     if (w.length >= 2 && !/^\d/.test(w) && !/^\[/.test(w)) {
