@@ -248,22 +248,36 @@
       "sendLink": true
     },
     {
-      "id": "pics_redirect",
-      "triggers": ["send pic", "send pics", "show me", "picture", "photo"],
+
+      "id": "appearance_redirect",
+      "triggers": ["what do you look like", "what are you like", "describe yourself", "show yourself", "picture of you", "whats your appearance", "how do you look", "what u look like", "describe your body"],
       "responses": [
-        "i dont send here, only on OF :p",
-        "nah i keep that on onlyfans",
-        "not here but on OF"
+        "hmm we'll see lets continue our convo here hehe",
+        "ill show u there hehe",
+        "all my pics are over there :p",
+        "youll see me on OF :3"
+      ],
+      "sendLink": true
+    },
+    {
+      "id": "pics_request_redirect",
+      "triggers": ["send pic", "send pics", "can i see", "show me", "send nudes", "send photo", "can you send", "got pics", "pics of you", "picture", "photo", "image", "send picture"],
+      "responses": [
+        "hmm we'll see lets continue our convo here hehe",
+        "thats all on OF babe :p",
+        "i have that there for u :3",
+        "wanna see? thats on OF"
       ],
       "sendLink": true
     },
     {
       "id": "meetup_redirect",
-      "triggers": ["meet", "meetup", "hook up", "come over", "visit", "in person"],
+      "triggers": ["meet", "meetup", "hook up", "come over", "visit", "in person", "meet up sometime"],
       "responses": [
-        "i only talk about that on OF",
-        "thats not something i discuss here",
-        "i keep that off discord"
+        "hmm we'll see lets continue our convo here hehe",
+        "thats for my OF people hehe",
+        "i only do that on OF babe",
+        "lets talk about that there :p"
       ],
       "sendLink": true
     },
