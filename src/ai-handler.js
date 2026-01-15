@@ -14,11 +14,11 @@ export class AIHandler {
   constructor() {
     this.apiManager = new APIManager();
     
-    // Get GPT Nano key if available
-    const gptNanoKey = process.env.GPT_NANO_API_KEY || null;
+    // Get OpenAI key if available
+    const openaiKey = process.env.OPENAI_API_KEY || null;
     
     // Initialize provider factory with both providers
-    this.providerFactory = new AIProviderFactory(this.apiManager, gptNanoKey);
+    this.providerFactory = new AIProviderFactory(this.apiManager, openaiKey);
     this.trainingExamples = this.loadTrainingExamples();
     
     logger.info(`AI Handler initialized`);
@@ -27,10 +27,10 @@ export class AIHandler {
     } else {
       logger.info(`Primary: Gemini (${this.apiManager.geminiKeys.length} keys)`);
     }
-    if (gptNanoKey) {
-      logger.info(`Fallback: GPT Nano ✓`);
+    if (openaiKey) {
+      logger.info(`Fallback: OpenAI ✓`);
     } else {
-      logger.info(`Fallback: GPT Nano (waiting for API key)`);
+      logger.info(`Fallback: OpenAI (waiting for API key)`);
     }
   }
 

@@ -19,7 +19,7 @@ export class APIManager {
     ].filter(key => key && key.length > 0);
 
     // Load GPT Nano key (fallback provider)
-    this.gptNanoKey = process.env.GPT_NANO_API_KEY || null;
+    this.gptNanoKey = process.env.OPENAI_API_KEY || null;
 
     // Track Gemini usage (MUST be initialized before logging)
     this.geminiStats = this.geminiKeys.map((key, index) => ({
@@ -42,9 +42,9 @@ export class APIManager {
     }
 
     if (this.gptNanoKey) {
-      logger.info('GPT Nano: Available (will use as fallback)');
+      logger.info('OpenAI: Available (will use as fallback)');
     } else {
-      logger.warn('GPT Nano: Not configured (add GPT_NANO_API_KEY to .env to enable)');
+      logger.warn('OpenAI: Not configured (add OPENAI_API_KEY to .env to enable)');
     }
 
     // Track which provider is active
@@ -70,11 +70,11 @@ export class APIManager {
     // Fallback to GPT Nano
     if (this.gptNanoKey) {
       this.currentProvider = 'gpt_nano';
-      logger.info('All Gemini keys exhausted - switching to GPT Nano');
+      logger.info('All Gemini keys exhausted - switching to OpenAI');
       return { key: this.gptNanoKey, provider: 'gpt_nano' };
     }
 
-    logger.error('No API keys available (no Gemini, no GPT Nano)');
+    logger.error('No API keys available (no Gemini, no OpenAI)');
     return null;
   }
 
