@@ -498,7 +498,21 @@ export class BrowserController {
                 break;
               }
               
-              if (!firstValidLine) firstValidLine = lines[0]; // Fallback to first line if all are dates
+              // If no valid line found, search all lines for one with username pattern (not date)
+              if (!firstValidLine) {
+                for (const line of lines) {
+                  // Try to find a line that has "username HH:MM" pattern (indicates actual message with author+time)
+                  if (/^([^\d\[\]:]+?)\s+[\d\[\]]*[\d:]/.test(line)) {
+                    firstValidLine = line;
+                    break;
+                  }
+                }
+              }
+              
+              // Still nothing? Use first line that's not a pure date
+              if (!firstValidLine && lines.length > 0) {
+                firstValidLine = lines[0];
+              }
               
               // Strategy 1: Look for "username HH:MM" or "username [HH:MM]" pattern
               const timeMatch = firstValidLine.match(/^([^\d\[\]:]+?)\s+[\d\[\]]*[\d:]/);
@@ -510,14 +524,20 @@ export class BrowserController {
                 if (dashMatch && dashMatch[1].trim().length > 0) {
                   author = dashMatch[1].trim();
                 } else {
-                  // Strategy 3: Just take first non-timestamp word
-                  const words = firstValidLine.split(/[\s—\[\]]+/);
-                  for (const w of words) {
-                    // Skip timestamps and numbers
-                    if (w.length >= 2 && !/^\d/.test(w) && !/^\[/.test(w)) {
-                      author = w;
-                      break;
+                  // Strategy 3: Just take first non-timestamp/non-date word that looks like a username
+                  for (const line of lines) {
+                    // Skip lines that are just dates/times
+                    if (/^(понедельник|вторник|среда|четверг|пятница|суббота|воскресенье|[а-яё]{5,},|January|February|March|April|May|June|July|August|September|October|November|December)/i.test(line)) continue;
+                    
+                    const words = line.split(/[\s—\[\]]+/);
+                    for (const w of words) {
+                      // Skip timestamps and numbers - usernames have letters
+                      if (w.length >= 2 && /[a-zA-Z_]/.test(w) && !/^\d/.test(w) && !/^\[/.test(w)) {
+                        author = w;
+                        break;
+                      }
                     }
+                    if (author && author !== 'Unknown') break;
                   }
                 }
               }
