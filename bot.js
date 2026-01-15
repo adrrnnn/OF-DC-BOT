@@ -422,14 +422,27 @@ class DiscordOFBot {
       }
 
       // Extract clean message text without timestamps for deduplication
-      // Discord messages include: "username — HH:MM date message text" or similar
-      // We need just the message text part
-      const cleanMessageText = latestUserMessage.content
-        .replace(/^\[?\d{1,2}:\d{2}\]?\s*/, '') // Remove [HH:MM] or HH:MM at start
-        .replace(/.*?—\s*/, '') // Remove everything up to and including em-dash
-        .replace(/.*?четверг.*?в\s+\d{1,2}:\d{2}\s+/, '') // Remove Russian date/time pattern
-        .replace(/^[^a-z0-9]*\d{1,2}:\d{2}[^a-z0-9]*/, '') // Remove HH:MM variations
-        .trim();
+      // Discord messages include various formats with timestamps and dates
+      // We need to extract just the actual message text
+      let cleanMessageText = latestUserMessage.content;
+      
+      // Remove [HH:MM] format timestamps at start
+      cleanMessageText = cleanMessageText.replace(/^\[\d{1,2}:\d{2}\]\s*/, '');
+      
+      // Remove HH:MM format timestamps at start
+      cleanMessageText = cleanMessageText.replace(/^\d{1,2}:\d{2}\s*/, '');
+      
+      // Remove em-dash separators and everything before them
+      cleanMessageText = cleanMessageText.replace(/.*?—\s*/, '');
+      
+      // Remove Russian date/time patterns like "пятница, 16 января 2026 г. в 00:36"
+      cleanMessageText = cleanMessageText.replace(/^(понедельник|вторник|среда|четверг|пятница|суббота|воскресенье)[,\.]?\s+\d{1,2}\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)[,\.]?\s+\d{4}\s+г\.\s+в\s+\d{1,2}:\d{2}\s*/, '');
+      
+      // Remove English date/time patterns
+      cleanMessageText = cleanMessageText.replace(/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)[,\.]?\s+\d{1,2}\s+(January|February|March|April|May|June|July|August|September|October|November|December)[,\.]?\s+\d{4}\s+at\s+\d{1,2}:\d{2}\s*/, '');
+      
+      // Clean up any remaining extra whitespace
+      cleanMessageText = cleanMessageText.trim();
 
       // Check if we already replied to this exact message
       const lastProcessed = this.conversationManager.getLastMessageId(userId);

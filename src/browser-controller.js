@@ -435,7 +435,7 @@ export class BrowserController {
   /**
    * Get messages from current DM
    */
-  async getMessages(limit = 2) {
+  async getMessages(limit = 1) {
     try {
       logger.debug('Attempting to extract messages from DOM...');
       
