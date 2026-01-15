@@ -164,6 +164,11 @@ export class BrowserController {
         logger.info(`Detected bot username: ${this.botUsername}`);
       }
       
+      // Wait for Discord to fully stabilize after auth before navigating
+      // This prevents chunk loading errors when Puppeteer navigates too quickly
+      logger.info('Waiting for Discord to fully initialize...');
+      await new Promise(r => setTimeout(r, 2000));
+      
       return true;
     } catch (error) {
       logger.error('Login failed', { error: error.message });
