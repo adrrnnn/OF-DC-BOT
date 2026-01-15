@@ -1,6 +1,8 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { APIManager } from './api-manager.js';
 import { logger } from './logger.js';
+import fs from 'fs';
+import path from 'path';
 
 /**
  * AI Handler - Uses Gemini FREE tier for response generation
@@ -11,6 +13,7 @@ export class AIHandler {
   constructor() {
     this.apiManager = new APIManager();
     this.clientMap = new Map(); // Map of key -> GoogleGenerativeAI client
+    this.trainingExamples = this.loadTrainingExamples();
     
     // Initialize clients for each key
     this.apiManager.keys.forEach(key => {
@@ -23,6 +26,48 @@ export class AIHandler {
       logger.info(`AI ready: ${this.apiManager.keys.length} Gemini key(s)`);
       logger.info('API rotation enabled - will switch keys if rate limited');
     }
+  }
+
+  /**
+   * Load training data examples to use as reference for natural responses
+   */
+  loadTrainingExamples() {
+    const paths = [
+      path.join(process.cwd(), 'Bot', 'config', 'training-data.json'),
+      path.join(process.cwd(), 'config', 'training-data.json'),
+      path.join(process.cwd(), 'training-data.json')
+    ];
+
+    for (const filePath of paths) {
+      if (fs.existsSync(filePath)) {
+        try {
+          const data = fs.readFileSync(filePath, 'utf8');
+          const parsed = JSON.parse(data);
+          return parsed.conversation_examples || [];
+        } catch (error) {
+          logger.warn(`Failed to load training data from ${filePath}: ${error.message}`);
+        }
+      }
+    }
+
+    logger.warn('No training examples found for AI context');
+    return [];
+  }
+
+  /**
+   * Build conversation context from training examples
+   */
+  buildConversationContext() {
+    if (this.trainingExamples.length === 0) {
+      return '';
+    }
+
+    const examples = this.trainingExamples.slice(0, 5).map(example => {
+      const response = example.good_responses[0] || 'Ok';
+      return `When user says: "${example.user_message}"\nRespond like: "${response}"`;
+    }).join('\n\n');
+
+    return `Reference conversation style:\n${examples}\n`;
   }
 
   /**
@@ -51,11 +96,18 @@ export class AIHandler {
 
       const model = client.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-      const prompt = `${systemPrompt}
+      // Build natural prompt using training context
+      const conversationContext = this.buildConversationContext();
+      
+      const prompt = `You are responding in a Discord DM conversation. Be natural, casual, and conversational - like texting with a friend.
 
-User says: "${userMessage}"
+${conversationContext}
 
-Respond as Yuki in 1-2 short sentences. Be flirty and playful. Use :3 :p hehe. Never explicit - tease only.`;
+${systemPrompt}
+
+The user just said: "${userMessage}"
+
+Respond naturally in 1-2 short sentences. Keep it casual and friendly, like you're texting.`;
 
       logger.info(`Making AI request (key ${this.apiManager.currentKeyIndex + 1}/${this.apiManager.keys.length})`);
       
@@ -64,8 +116,9 @@ Respond as Yuki in 1-2 short sentences. Be flirty and playful. Use :3 :p hehe. N
 
       // Clean response
       response = response
-        .replace(/^(Yuki:|Assistant:|Bot:)\s*/i, '')
+        .replace(/^(Yuki:|Assistant:|Bot:|You:|Me:)\s*/i, '')
         .replace(/^["']|["']$/g, '')
+        .replace(/^\*\*|^\*\*|^__|^__/g, '')  // Remove markdown emphasis
         .trim();
 
       // Record successful API call
@@ -87,13 +140,13 @@ Respond as Yuki in 1-2 short sentences. Be flirty and playful. Use :3 :p hehe. N
    */
   getFallbackResponse() {
     const fallbacks = [
-      'hehe thats interesting :3',
-      'ooo really? tell me more hehe',
-      'hahaha youre funny :p',
-      'hmm maybe :3',
-      'aww hehe',
-      'lol wdym :p',
-      'hehe youre sweet :3'
+      'that sounds interesting',
+      'oh really? tell me more',
+      'haha youre funny',
+      'hmm maybe',
+      'thats cool',
+      'lol what do you mean',
+      'youre sweet'
     ];
     return fallbacks[Math.floor(Math.random() * fallbacks.length)];
   }
