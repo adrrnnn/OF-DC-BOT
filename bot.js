@@ -394,7 +394,13 @@ class DiscordOFBot {
       );
 
       let messageSent = false;
-      if (response) {
+      
+      // Check if conversation was ended (e.g., link detected)
+      if (response === null) {
+        logger.info(`🔗 Conversation ended: User engagement detected (link in message)`);
+        this.inConversationWith = null;
+        // Don't navigate away, just release conversation lock
+      } else if (response) {
         // Send exactly ONE response per user message
         const sent = await this.browser.sendMessage(response.message);
 

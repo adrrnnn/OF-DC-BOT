@@ -38,6 +38,15 @@ export class MessageHandler {
     try {
       logger.info(`Message from ${userId}: "${userMessage}"`);
 
+      // CRITICAL: Check if message contains a link (user clicked OF link or sent their own)
+      const hasLink = /https?:\/\/|www\.|\.com|\.io|\.co/i.test(userMessage);
+      if (hasLink) {
+        logger.info(`🔗 Link detected in message from ${userId} - assuming user is engaging with OF link`);
+        // Return null to close conversation (no response needed)
+        this.conversationManager.endConversation(userId);
+        return null; // Don't send a response, just end conversation
+      }
+
       // Step 1: Classify intent (research-based, NO API call)
       const intentData = this.intentClassifier.classifyIntent(userMessage);
       logger.info(`Intent classified: ${intentData.intent} (confidence: ${(intentData.confidence * 100).toFixed(1)}%)`);
