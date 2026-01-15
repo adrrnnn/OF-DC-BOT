@@ -29,7 +29,7 @@ class DiscordOFBot {
     this.dmCacheManager = new DMCacheManager(); // NEW: Cache DM states
     this.messageHandler = new MessageHandler(this.conversationManager);
     this.isRunning = false;
-    this.dmCheckInterval = parseInt(process.env.CHECK_DMS_INTERVAL) || 60000; // Changed: 60 seconds instead of 5
+    this.dmCheckInterval = 60000; // Default, will be overridden in start()
     this.lastChecked = 0;
     this.dmPollingInterval = null;
     this.healthCheckInterval = null;
@@ -47,6 +47,15 @@ class DiscordOFBot {
     try {
       console.clear();
       console.log('');
+      
+      // Initialize dmCheckInterval from .env AFTER dotenv.config()
+      if (process.env.CHECK_DMS_INTERVAL) {
+        const parsed = parseInt(process.env.CHECK_DMS_INTERVAL);
+        if (!isNaN(parsed)) {
+          this.dmCheckInterval = parsed;
+        }
+      }
+      
       logger.info('========================================');
       logger.info('   Discord OnlyFans Bot v2.0');
       logger.info('   Starting Initialization Sequence');
@@ -147,17 +156,12 @@ class DiscordOFBot {
       console.log('ERROR DETAILS:');
       console.log(error.stack);
       console.log('');
-      this.loginAttempts++;
-
-      if (this.loginAttempts < this.maxLoginAttempts) {
-        logger.info(
-          `Retrying login (${this.loginAttempts}/${this.maxLoginAttempts})...`
-        );
-        await new Promise((r) => setTimeout(r, 5000));
-        return this.start();
-      }
-
-      process.exit(1);
+      logger.info('Browser will remain open. Fix the issue and reload Discord manually.');
+      logger.info('To exit, press Ctrl+C');
+      
+      // Don't retry or exit - just keep the browser open indefinitely
+      // User can fix the issue manually and reload
+      return;
     }
   }
 

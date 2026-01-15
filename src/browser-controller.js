@@ -34,13 +34,16 @@ export class BrowserController {
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
-          '--disable-gpu',
           '--disable-blink-features=AutomationControlled',
         ],
         defaultViewport: { width: 1920, height: 1080 },
       });
 
       this.page = await this.browser.newPage();
+
+      // Set no navigation timeout (wait indefinitely)
+      this.page.setDefaultNavigationTimeout(0);
+      this.page.setDefaultTimeout(0);
 
       // Set realistic user agent
       await this.page.setUserAgent(
@@ -105,15 +108,15 @@ export class BrowserController {
       // Go to Discord login
       logger.info('Navigating to Discord login');
       await this.page.goto('https://discord.com/login', {
-        waitUntil: 'networkidle2',
-        timeout: 30000,
+        waitUntil: 'domcontentloaded',
       });
 
-      // Enter credentials
-      await this.page.waitForSelector('input[name="email"]', { timeout: 10000 });
+      // Wait for login form inputs to appear (no timeout - wait indefinitely)
+      logger.info('Waiting for login form to load...');
+      await this.page.waitForSelector('input[name="email"]');
       await this.page.type('input[name="email"]', email, { delay: 50 });
 
-      await this.page.waitForSelector('input[name="password"]', { timeout: 10000 });
+      await this.page.waitForSelector('input[name="password"]');
       await this.page.type('input[name="password"]', password, { delay: 50 });
 
       // Click login
@@ -218,8 +221,7 @@ export class BrowserController {
   async navigateToFriendsList() {
     try {
       await this.page.goto('https://discord.com/channels/@me', {
-        waitUntil: 'networkidle2',
-        timeout: 30000,
+        waitUntil: 'domcontentloaded',
       });
 
       // Verify we're actually on the friends list page
@@ -245,8 +247,7 @@ export class BrowserController {
       if (!currentUrl.includes('/channels/@me')) {
         // Only navigate if we're not on friends list
         await this.page.goto('https://discord.com/channels/@me', {
-          waitUntil: 'networkidle2',
-          timeout: 30000,
+          waitUntil: 'domcontentloaded',
         });
       }
       
@@ -333,8 +334,7 @@ export class BrowserController {
     try {
       // Navigate to the DM
       await this.page.goto(`https://discord.com/channels/@me/${userId}`, {
-        waitUntil: 'networkidle2',
-        timeout: 10000,
+        waitUntil: 'domcontentloaded',
       });
 
       await new Promise(r => setTimeout(r, 500));
@@ -382,8 +382,7 @@ export class BrowserController {
   async openDM(userId) {
     try {
       await this.page.goto(`https://discord.com/channels/@me/${userId}`, {
-        waitUntil: 'networkidle2',
-        timeout: 15000,
+        waitUntil: 'domcontentloaded',
       });
       
       // Wait for messages to be visible
