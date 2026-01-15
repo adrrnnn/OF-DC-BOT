@@ -410,14 +410,15 @@ class DiscordOFBot {
         logger.info(`No response generated for ${username}`);
       }
 
-      // Wait 5 minutes in this conversation for follow-up messages
+      // Keep conversation open for potential follow-ups or signup confirmation
       if (messageSent) {
-        logger.info(`Waiting 5 minutes in conversation with ${username}...`);
-        await new Promise(r => setTimeout(r, 5 * 60 * 1000));
-
-        // Return to friends list
-        logger.info('Returning to friends list...');
-        this.inConversationWith = null; // Clear flag when done waiting
+        logger.info(`Conversation open with ${username} - waiting for follow-ups...`);
+        // Don't explicitly wait or end conversation
+        // Let it continue naturally - user may come back to say they signed up
+        // Conversation will only end if they explicitly refuse OF or after long timeout
+        this.inConversationWith = null; // Release lock so we can check other DMs
+        // But conversation stays active for future messages
+      }
         this.lastPage = 'dm'; // Will return to friends on next poll
         await this.browser.navigateToFriendsList();
         this.lastPage = 'friends';

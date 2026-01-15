@@ -53,9 +53,9 @@ export class ConversationManager {
     const conv = this.conversations.get(userId);
     if (!conv) return false;
     
-    // Conversation expires after 10 minutes
-    const tenMinutes = 10 * 60 * 1000;
-    if (Date.now() - conv.startTime > tenMinutes) {
+    // Conversation stays active for 1 hour (allows for follow-ups like "I signed up")
+    const oneHour = 60 * 60 * 1000;
+    if (Date.now() - conv.startTime > oneHour) {
       this.endConversation(userId);
       return false;
     }
@@ -125,4 +125,16 @@ export class ConversationManager {
     this.conversations.delete(userId);
     this.saveState();
   }
+
+  // Reset conversation for testing (clear state but keep conversation active)
+  resetConversation(userId) {
+    this.conversations.set(userId, {
+      startTime: Date.now(),
+      lastMessageId: null,
+      messageCount: 0,
+      ofLinkSent: false
+    });
+    this.saveState();
+  }
 }
+
