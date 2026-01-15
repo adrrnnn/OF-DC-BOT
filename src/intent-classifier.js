@@ -20,7 +20,8 @@ export class IntentClassifier {
           'wanna fuck', 'lets fuck', 'lets sext', 'im so horny'
         ],
         confidence: 1.0,
-        response_style: 'teasing_escalate'
+        response_style: 'teasing_escalate',
+        isSexting: true
       },
       
       COMPLIMENT_SEXUAL: {
@@ -37,10 +38,42 @@ export class IntentClassifier {
         keywords: [
           'show me', 'send pictures', 'send videos', 'can i see', 'can you send',
           'more pics', 'more content', 'exclusive content', 'see you',
-          'pics of you', 'photos', 'videos', 'content creator'
+          'pics of you', 'photos', 'videos', 'content creator', 'send picture',
+          'send photo', 'picture', 'photo', 'image'
         ],
         confidence: 0.85,
-        response_style: 'tease_direct'
+        response_style: 'tease_direct',
+        isContentRequest: true
+      },
+
+      SEXTING_REQUEST: {
+        keywords: [
+          'sext', 'dirty', 'roleplay', 'chat dirty', 'talk dirty', 'intimate',
+          'describe yourself', 'turn me on', 'get me excited', 'get off', 'masturbate'
+        ],
+        confidence: 0.90,
+        response_style: 'tease_direct',
+        isSexting: true
+      },
+
+      MEETUP_REQUEST: {
+        keywords: [
+          'meet', 'meetup', 'hook up', 'hookup', 'in person', 'hang out', 'meet up',
+          'come over', 'visit', 'where are you', 'location', 'city', 'nearby'
+        ],
+        confidence: 0.85,
+        response_style: 'redirect',
+        isSpecialRequest: true
+      },
+
+      REFUSED_OF: {
+        keywords: [
+          'no onlyfans', 'not interested', 'dont do onlyfans', 'wont pay', 'no thanks',
+          'not my thing', 'not into that', 'dont care', 'whatever', 'no thanks'
+        ],
+        confidence: 0.90,
+        response_style: 'end_conversation',
+        isEndConversation: true
       },
 
       INQUIRY_BUSINESS: {

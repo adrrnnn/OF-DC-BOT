@@ -255,6 +255,61 @@
         "ooo curious arent you",
         "umm let me think about that"
       ]
+    },
+    {
+      "id": "sexting_request_redirect",
+      "triggers": ["sext", "dirty", "roleplay", "talk dirty", "chat dirty", "turn me on"],
+      "responses": [
+        "i only discuss that kind of thing on OF, btw its free :p",
+        "oohh but i keep the spicy stuff on onlyfans hehe",
+        "hehe thats what OF is for, its free to check out :3",
+        "i save that kind of talk for OF, come sub its free"
+      ],
+      "sendLink": true
+    },
+    {
+      "id": "pics_redirect",
+      "triggers": ["send pic", "send pics", "show me", "picture", "photo"],
+      "responses": [
+        "i don't send pictures here, i only send them on OF",
+        "nah i keep that on onlyfans :p",
+        "hehe not here but you can see more on OF",
+        "i don't do that here sorry :( its all on OF tho"
+      ],
+      "sendLink": true
+    },
+    {
+      "id": "meetup_redirect",
+      "triggers": ["meet", "meetup", "hook up", "come over", "visit", "in person"],
+      "responses": [
+        "i wouldn't really discuss anything like that here, only on OF",
+        "yeah thats not something i talk about here, just on OF",
+        "i only handle that kind of stuff on OF sorry",
+        "nah i keep personal stuff off discord, talk to me on OF"
+      ],
+      "sendLink": true
+    },
+    {
+      "id": "blurred_pic_redirect",
+      "triggers": ["blurred", "can't see", "blocked", "unblur"],
+      "responses": [
+        "oh thats blurred for me, maybe my ISP is blocking it, you'll have to send it on OF",
+        "hmm it's not showing right, you'll have to share that on OF",
+        "ah can't see it properly, send it on OF instead :p",
+        "that's not loading for me, try sending it on OF"
+      ],
+      "sendLink": true
+    },
+    {
+      "id": "refused_of_endconv",
+      "triggers": ["no onlyfans", "dont do onlyfans", "not interested", "wont pay"],
+      "responses": [
+        "ok then, well thats the only place im comfortable talking :/ good luck!",
+        "no worries, but that's really where i'm comfortable - take care!",
+        "all good, but OF is the only place for me - have a good one!",
+        "that's cool, but that's where i do my thing - bye!"
+      ],
+      "endConversation": true
     }
   ],
   "ofLinkMessage": "its free to sub too :3\n{OF_LINK}\nif you wanted to check out hehe\nlmk if you messaged me there alright? so i can prioritize you <33",
