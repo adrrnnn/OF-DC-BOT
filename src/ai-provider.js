@@ -156,14 +156,16 @@ export class AIProviderFactory {
    * Get next available provider (Gemini first, then GPT Nano)
    */
   getProvider() {
-    // Try Gemini first
-    if (this.geminiProvider.isAvailable()) {
+    // Check if we have available Gemini keys (not rate-limited/exhausted)
+    const hasAvailableGemini = this.apiManager.geminiStats.some(s => !s.quotaExhausted && !s.rateLimited);
+    
+    if (hasAvailableGemini && this.geminiProvider.isAvailable()) {
       return this.geminiProvider;
     }
 
     // Fallback to GPT Nano
     if (this.gptNanoProvider?.isAvailable()) {
-      logger.warn('Falling back to GPT Nano');
+      logger.info('Gemini exhausted/rate-limited - using OpenAI');
       return this.gptNanoProvider;
     }
 
