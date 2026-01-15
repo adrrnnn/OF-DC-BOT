@@ -38,6 +38,8 @@ class DiscordOFBot {
     this.inConversationWith = null; // Track which user we're currently waiting for follow-ups from
     this.lastPage = 'friends'; // Track current page to avoid unnecessary navigation
     this.dmCheckMinInterval = 30000; // Only re-check a DM every 30 seconds at minimum
+    this.lastResponseTime = new Map(); // Track when we last responded to each user for cooldown
+    this.responseCooldown = 3500; // Minimum 3.5 seconds between responses to same user
   }
 
   /**
@@ -419,19 +421,35 @@ class DiscordOFBot {
         return;
       }
 
-      // Check if we already replied to this exact message in this conversation
-      // If so, wait 5 minutes before replying to next message
+      // Extract clean message text without timestamps for deduplication
+      // Discord messages include: "username — HH:MM date message text" or similar
+      // We need just the message text part
+      const cleanMessageText = latestUserMessage.content
+        .replace(/^\[?\d{1,2}:\d{2}\]?\s*/, '') // Remove [HH:MM] or HH:MM at start
+        .replace(/.*?—\s*/, '') // Remove everything up to and including em-dash
+        .replace(/.*?четверг.*?в\s+\d{1,2}:\d{2}\s+/, '') // Remove Russian date/time pattern
+        .replace(/^[^a-z0-9]*\d{1,2}:\d{2}[^a-z0-9]*/, '') // Remove HH:MM variations
+        .trim();
+
+      // Check if we already replied to this exact message
       const lastProcessed = this.conversationManager.getLastMessageId(userId);
-      if (lastProcessed && lastProcessed === latestUserMessage.content) {
+      if (lastProcessed && lastProcessed === cleanMessageText) {
         logger.info(`Already replied to this message from ${username}, waiting for new message...`);
         return; // Don't clear inConversationWith yet - we're still waiting
       }
 
-      logger.info(`User said: "${latestUserMessage.content}"`);
+      // Check cooldown - don't respond more than once every 3.5 seconds
+      const lastReplyTime = this.lastResponseTime.get(userId);
+      if (lastReplyTime && Date.now() - lastReplyTime < this.responseCooldown) {
+        logger.info(`Cooldown active for ${username} (${Math.round(this.responseCooldown - (Date.now() - lastReplyTime))}ms remaining)`);
+        return;
+      }
 
-      // CRITICAL FIX: Mark message as processed BEFORE handling
-      // Store with timestamp to prevent race conditions - only process once per timestamp
-      this.conversationManager.setLastMessageId(userId, latestUserMessage.content);
+      logger.info(`User said: "${cleanMessageText}"`);
+
+      // Mark message as processed BEFORE handling to prevent race conditions
+      this.conversationManager.setLastMessageId(userId, cleanMessageText);
+      this.lastResponseTime.set(userId, Date.now());
 
       // Handle the message (generates exactly 1 response)
       const response = await this.messageHandler.handleDM(
