@@ -126,22 +126,12 @@ export class TemplateMatcher {
   findMatch(userMessage) {
     const msg = userMessage.toLowerCase().trim();
 
-    // PRIORITY 1: Try training data first
-    const trainingMatch = this.findTrainingDataMatch(userMessage);
-    if (trainingMatch && trainingMatch.confidence > 0.4) {
-      return trainingMatch;
-    }
-
-    // PRIORITY 2: Check hardcoded templates
-    // Prefer exact phrase matches over substring matches
-    let bestTemplate = null;
-    let bestTriggerLength = 0;
-
+    // PRIORITY 1: Check exact phrase template matches FIRST (these are critical redirects)
     for (const template of this.templates) {
       for (const trigger of template.triggers) {
         const triggerLower = trigger.toLowerCase();
         
-        // Exact phrase match
+        // Exact phrase match - takes highest priority
         if (msg === triggerLower) {
           const response = template.responses[
             Math.floor(Math.random() * template.responses.length)
@@ -156,6 +146,22 @@ export class TemplateMatcher {
             source: 'template_exact'
           };
         }
+      }
+    }
+
+    // PRIORITY 2: Try training data
+    const trainingMatch = this.findTrainingDataMatch(userMessage);
+    if (trainingMatch && trainingMatch.confidence > 0.4) {
+      return trainingMatch;
+    }
+
+    // PRIORITY 3: Check hardcoded templates for word boundary/substring matches
+    let bestTemplate = null;
+    let bestTriggerLength = 0;
+
+    for (const template of this.templates) {
+      for (const trigger of template.triggers) {
+        const triggerLower = trigger.toLowerCase();
         
         // Word boundary match (better than substring)
         const wordBoundaryPattern = `\\b${triggerLower}\\b`;
