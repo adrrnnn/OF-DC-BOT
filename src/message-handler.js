@@ -76,6 +76,12 @@ export class MessageHandler {
           shouldSendLink = true;
           logger.info('Sexual content detected - should send OF link');
         }
+        
+        // Check if AI response mentions OF/OnlyFans
+        if (response && this.mentionsOnlyFans(response)) {
+          shouldSendLink = true;
+          logger.info('AI response mentions OnlyFans - should send OF link');
+        }
       }
 
       // Build final response with OF link if needed
@@ -120,6 +126,21 @@ export class MessageHandler {
     return Math.floor(
       Math.random() * (this.responseDelay.max - this.responseDelay.min) + this.responseDelay.min
     );
+  }
+
+  /**
+   * Check if response mentions OnlyFans/OF content
+   * If AI mentions OF, we should send the link
+   */
+  mentionsOnlyFans(response) {
+    if (!response) return false;
+    const lower = response.toLowerCase();
+    const ofKeywords = [
+      'onlyfans', 'of ', 'exclusive content', 'my content', 'there', 'over there',
+      'see more', 'check out', 'come see', 'talk there', 'dm there',
+      'subscribe', 'membership', 'see it all'
+    ];
+    return ofKeywords.some(kw => lower.includes(kw));
   }
 }
 
