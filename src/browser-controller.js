@@ -518,6 +518,20 @@ export class BrowserController {
               continue;
             }
             
+            // CRITICAL: Validate author is not a date/timestamp/day-of-week
+            // This catches corrupted extraction from multi-line messages
+            // Invalid patterns: "пятница,", "15:09", "January 16", etc.
+            if (/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|понедельник|вторник|среда|четверг|пятница|суббота|воскресенье|[а-я]{9,},?|[a-z]{9,},?)$/i.test(author)) {
+              debug.errors.push(`Author is day-of-week (${author}), skipping`);
+              continue;
+            }
+            
+            // Skip if author looks like a timestamp or date
+            if (/^\d{1,2}:\d{2}/.test(author) || /^\d{1,2}\s+(January|February|марта|февраля)/i.test(author)) {
+              debug.errors.push(`Author looks like timestamp/date (${author}), skipping`);
+              continue;
+            }
+            
             // CRITICAL: Skip messages from the bot itself (karen_1962.ec_19875)
             // This prevents the bot from re-processing its own messages
             const botUsername = 'karen_1962.ec_19875';
