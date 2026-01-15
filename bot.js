@@ -426,10 +426,6 @@ class DiscordOFBot {
         // But conversation stays active for future messages
       }
 
-      this.lastPage = 'dm'; // Will return to friends on next poll
-      await this.browser.navigateToFriendsList();
-      this.lastPage = 'friends';
-
     } catch (error) {
       logger.error(`Error processing DM: ${error.message}`);
       this.inConversationWith = null;
