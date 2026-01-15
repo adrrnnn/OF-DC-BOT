@@ -462,14 +462,22 @@ class DiscordOFBot {
       }
 
       logger.info(`User said: "${cleanMessageText}"`);
+      
+      // Use author from extracted message (more reliable than sidebar)
+      const extractedUsername = latestUserMessage.author || username;
+      if (!extractedUsername) {
+        logger.warn('Could not determine username, skipping');
+        this.inConversationWith = null;
+        return;
+      }
 
       // CRITICAL: Check if OF link was already sent to this user
       const ofLinkAlreadySent = this.conversationManager.hasOFLinkBeenSent(userId);
-      const isTestAccount = this.testAccounts.includes(username.toLowerCase());
+      const isTestAccount = this.testAccounts.includes(extractedUsername.toLowerCase());
       
       if (ofLinkAlreadySent && !isTestAccount) {
         // Regular user - conversation is DONE, don't respond
-        logger.info(`OF link already sent to ${username} (regular user) - conversation ended, not responding`);
+        logger.info(`OF link already sent to ${extractedUsername} (regular user) - conversation ended, not responding`);
         this.inConversationWith = null;
         return;
       }
@@ -479,11 +487,11 @@ class DiscordOFBot {
         const isGreeting = /^(hey|hi|hello|yo|sup|watsup|what's up|whats up|wassup|hola|howdy|greetings)/i.test(cleanMessageText);
         if (isGreeting) {
           // Reset conversation for test account
-          logger.info(`Test account ${username} sent greeting after OF link - resetting conversation`);
+          logger.info(`Test account ${extractedUsername} sent greeting after OF link - resetting conversation`);
           this.conversationManager.startConversation(userId);
         } else {
           // Not a greeting, treat as continuation (test account can continue after OF link)
-          logger.info(`Test account ${username} sent non-greeting after OF link - continuing conversation`);
+          logger.info(`Test account ${extractedUsername} sent non-greeting after OF link - continuing conversation`);
         }
       }
 
@@ -510,22 +518,22 @@ class DiscordOFBot {
 
         if (sent) {
           logger.info(
-            `✅ Response sent to ${username} (source: ${response.source}, hasOFLink: ${response.hasOFLink})`
+            `✅ Response sent to ${extractedUsername} (source: ${response.source}, hasOFLink: ${response.hasOFLink})`
           );
           
           // CRITICAL: Mark OF link as sent if this response includes it
           if (response.hasOFLink) {
             this.conversationManager.markOFLinkSent(userId);
             if (!isTestAccount) {
-              logger.info(`🔗 OF link sent to regular user ${username} - conversation will end on next message`);
+              logger.info(`🔗 OF link sent to regular user ${extractedUsername} - conversation will end on next message`);
             } else {
-              logger.info(`🔗 OF link sent to test account ${username} - conversation can continue on greeting`);
+              logger.info(`🔗 OF link sent to test account ${extractedUsername} - conversation can continue on greeting`);
             }
           }
           
           messageSent = true;
         } else {
-          logger.warn(`Failed to send response to ${username}`);
+          logger.warn(`Failed to send response to ${extractedUsername}`);
         }
       } else {
         logger.info(`No response generated for ${username}`);
@@ -533,7 +541,7 @@ class DiscordOFBot {
 
       // Keep conversation open for potential follow-ups or signup confirmation
       if (messageSent) {
-        logger.info(`Conversation open with ${username} - waiting for follow-ups...`);
+        logger.info(`Conversation open with ${extractedUsername} - waiting for follow-ups...`);
         // Keep conversation locked - don't release immediately
         // This prevents the same message from being processed multiple times
         // Lock will be released when: user sends new message, or timeout occurs

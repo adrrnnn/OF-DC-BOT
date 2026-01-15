@@ -531,8 +531,8 @@ export class BrowserController {
                     
                     const words = line.split(/[\s—\[\]]+/);
                     for (const w of words) {
-                      // Skip timestamps and numbers - usernames have letters
-                      if (w.length >= 2 && /[a-zA-Z_]/.test(w) && !/^\d/.test(w) && !/^\[/.test(w)) {
+                      // Require 3+ chars to avoid fragments like "my", "when", "us", "re"
+                      if (w.length >= 3 && /[a-zA-Z_]/.test(w) && !/^\d/.test(w) && !/^\[/.test(w)) {
                         author = w;
                         break;
                       }
