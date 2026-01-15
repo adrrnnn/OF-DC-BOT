@@ -41,6 +41,7 @@ class DiscordOFBot {
     this.lastResponseTime = new Map(); // Track when we last responded to each user for cooldown
     this.responseCooldown = 3500; // Minimum 3.5 seconds between responses to same user
     this.testAccounts = ['kuangg']; // Test accounts - conversation resets on new greeting
+    this.responsePending = {}; // Track which users have responses being sent
   }
 
   /**
@@ -279,6 +280,12 @@ class DiscordOFBot {
     try {
       const { userId, username } = dm;
 
+      // Skip if response is already pending for this user (prevents re-processing same message)
+      if (this.responsePending[userId]) {
+        logger.debug(`Response pending for ${username}, skipping check`);
+        return false;
+      }
+
       // Open the DM
       const opened = await this.browser.openDM(userId);
       if (!opened) {
@@ -508,6 +515,9 @@ class DiscordOFBot {
       // Mark message as processed BEFORE handling to prevent race conditions
       this.conversationManager.setLastMessageId(userId, cleanMessageText);
       this.lastResponseTime.set(userId, Date.now());
+      
+      // Mark response as pending (prevents re-processing during wait-to-send period)
+      this.responsePending[userId] = true;
 
       // Handle the message (generates exactly 1 response)
       const response = await this.messageHandler.handleDM(
@@ -521,6 +531,7 @@ class DiscordOFBot {
       if (response === null) {
         logger.info(`🔗 Conversation ended: User engagement detected (link in message)`);
         this.inConversationWith = null;
+        this.responsePending[userId] = false;
         // Don't navigate away, just release conversation lock
       } else if (response) {
         // Send exactly ONE response per user message
@@ -549,6 +560,9 @@ class DiscordOFBot {
         logger.info(`No response generated for ${username}`);
       }
 
+      // Clear pending flag after message is sent (or generation failed)
+      this.responsePending[userId] = false;
+
       // Keep conversation open for potential follow-ups or signup confirmation
       if (messageSent) {
         logger.info(`Conversation open with ${extractedUsername} - waiting for follow-ups...`);
@@ -561,6 +575,7 @@ class DiscordOFBot {
 
     } catch (error) {
       logger.error(`Error processing DM: ${error.message}`);
+      this.responsePending[userId] = false;
       this.inConversationWith = null;
     }
   }
