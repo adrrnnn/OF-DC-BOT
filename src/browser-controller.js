@@ -41,9 +41,10 @@ export class BrowserController {
 
       this.page = await this.browser.newPage();
 
-      // Set no navigation timeout (wait indefinitely)
-      this.page.setDefaultNavigationTimeout(0);
-      this.page.setDefaultTimeout(0);
+      // Set reasonable navigation timeout (60 seconds = 60000ms)
+      // Prevents hanging indefinitely if Discord is slow or unresponsive
+      this.page.setDefaultNavigationTimeout(60000);
+      this.page.setDefaultTimeout(60000);
 
       // Set realistic user agent
       await this.page.setUserAgent(

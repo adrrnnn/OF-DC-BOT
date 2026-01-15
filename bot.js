@@ -289,50 +289,6 @@ class DiscordOFBot {
       }
 
       // Get latest USER message (not from us)
-      const latestUserMessage = messages
-        .reverse()
-        .find(msg => msg.author !== 'You' && msg.author.toLowerCase() !== 'unknown');
-
-      if (!latestUserMessage) {
-        return false;
-      }
-
-      // Check if we already replied to this exact message
-      if (this.conversationManager.getLastMessageId(userId) === latestUserMessage.content) {
-        // Already replied to this message
-        return false;
-      }
-
-      // New message found!
-      logger.info(`New message found from ${username}: "${latestUserMessage.content}"`);
-      return true;
-
-    } catch (error) {
-      logger.warn(`Error checking DM from ${dm.username || 'user'}: ${error.message}`);
-      return false;
-    }
-  }
-
-  /**
-   * Check if a DM has new messages from the user that we haven't replied to
-   */
-  async checkDMForNewMessages(dm) {
-    try {
-      const { userId, username } = dm;
-
-      // Open the DM
-      const opened = await this.browser.openDM(userId);
-      if (!opened) {
-        return false;
-      }
-
-      // Get messages
-      const messages = await this.browser.getMessages();
-      if (messages.length === 0) {
-        return false;
-      }
-
-      // Get latest USER message (not from us)
       // Filter out: "You" (Discord's label), "unknown", and bot's own username
       const botUsername = this.browser.botUsername || 'You';
       const latestUserMessage = messages
@@ -359,56 +315,6 @@ class DiscordOFBot {
 
     } catch (error) {
       logger.warn(`Error checking DM from ${dm.username || 'user'}: ${error.message}`);
-      return false;
-    }
-  }
-
-  /**
-   * Check if a DM has new messages - simple version
-   */
-  async checkDMForNewMessagesOptimized(userId) {
-    try {
-      // Open the DM
-      const opened = await this.browser.openDM(userId);
-      if (!opened) {
-        logger.warn(`Could not open DM with user ${userId}`);
-        return false;
-      }
-
-      // Get messages from the DM
-      const messages = await this.browser.getMessages();
-      if (messages.length === 0) {
-        return false;
-      }
-
-      // Find latest message from the user (not from us)
-      // Filter out: "You" (Discord's label), "unknown", and bot's own username
-      const botUsername = this.browser.botUsername || 'You';
-      const latestUserMessage = messages
-        .reverse()
-        .find(msg => 
-          msg.author !== 'You' && 
-          msg.author.toLowerCase() !== 'unknown' &&
-          msg.author.toLowerCase() !== botUsername.toLowerCase()
-        );
-
-      if (!latestUserMessage) {
-        return false;
-      }
-
-      // Simple cache check: have we already replied to this?
-      const lastSeenId = this.conversationManager.getLastMessageId(userId);
-      
-      // If this is a new message (content is different), it's new
-      if (lastSeenId !== latestUserMessage.content) {
-        logger.info(`✓ NEW MESSAGE from ${userId}: "${latestUserMessage.content.substring(0, 50)}..."`);
-        return true;
-      }
-
-      return false;
-
-    } catch (error) {
-      logger.warn(`Error checking DM ${userId}: ${error.message}`);
       return false;
     }
   }
@@ -477,11 +383,9 @@ class DiscordOFBot {
 
       logger.info(`User said: "${latestUserMessage.content}"`);
 
-      // CRITICAL: Check if we already replied to this message (prevent double-response spam)
-      if (this.conversationManager.getLastMessageId(userId) === latestUserMessage.content) {
-        logger.debug(`⚠️ DUPLICATE CHECK: Already replied to this exact message - skipping to prevent spam`);
-        return;
-      }
+      // CRITICAL FIX: Mark message as processed BEFORE handling
+      // This prevents race condition where new message arrives during processing
+      this.conversationManager.setLastMessageId(userId, latestUserMessage.content);
 
       // Handle the message (generates exactly 1 response)
       const response = await this.messageHandler.handleDM(
@@ -491,17 +395,13 @@ class DiscordOFBot {
 
       let messageSent = false;
       if (response) {
-        // CRITICAL: Send exactly ONE response per user message
-        logger.debug(`📤 Sending 1 response (no spam): "${response.message.substring(0, 80)}..."`);
+        // Send exactly ONE response per user message
         const sent = await this.browser.sendMessage(response.message);
 
         if (sent) {
           logger.info(
-            `✅ 1 response sent to ${username} (source: ${response.source}, hasOFLink: ${response.hasOFLink})`
+            `✅ Response sent to ${username} (source: ${response.source}, hasOFLink: ${response.hasOFLink})`
           );
-          
-          // CRITICAL: Mark this message as replied-to (prevent any future duplicate responses)
-          this.conversationManager.setLastMessageId(userId, latestUserMessage.content);
           messageSent = true;
         } else {
           logger.warn(`Failed to send response to ${username}`);
