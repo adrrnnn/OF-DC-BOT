@@ -315,19 +315,19 @@ export class IntentClassifier {
 
       GREETING_NORMAL: {
         first_message_greeting: [
-          "hey! whats up 😊",
-          "hi! how are you?",
-          "hey there! whats going on?"
+          "hey whats up 😊",
+          "hi how are you",
+          "hey there whats going on"
         ],
         continue_conversation: [
-          "thats cool! so what brings you to chat?",
-          "nice! whats up with you?",
-          "thats awesome! tell me more"
+          "thats cool hehe",
+          "nice whats up with you",
+          "thats awesome tell me more"
         ],
         rapport_introduce_of: [
-          "so you seem cool! i actually do content creation on onlyfans if youre interested 😊",
-          "btw i post exclusive stuff on onlyfans if you ever want to check it out",
-          "hehe fun chatting with you! check out my onlyfans sometime 😉"
+          "so you seem cool hehe i do content creation on onlyfans if youre interested 😊",
+          "btw i post exclusive stuff on onlyfans if you want to check it out",
+          "hehe fun chatting with you check out my onlyfans sometime 😉"
         ]
       }
     };

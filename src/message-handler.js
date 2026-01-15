@@ -55,9 +55,21 @@ export class MessageHandler {
       let source;
       let shouldSendLink = false;
 
-      // Step 2: High-confidence intent matches (NO API call)
-      if (intentData.confidence >= 0.4 && !intentData.requiresAI) {
-        // Get funnel stage for this conversation
+      // PRIORITY 1: Try template matching FIRST (hardcoded scripts are better than intent fallbacks)
+      const match = this.templateMatcher.findMatch(userMessage);
+      
+      if (match && match.confidence >= 0.5) {
+        // Template found - use it
+        response = match.response;
+        source = match.source === 'training_data' ? 'script_training' : 'script_template';
+        logger.info(`Template matched: ${match.templateId}`);
+        
+        if (match.sendLink) {
+          shouldSendLink = true;
+        }
+      } 
+      // PRIORITY 2: Fall back to intent classifier (for complex interactions)
+      else if (intentData.confidence >= 0.4 && !intentData.requiresAI) {
         const conversationState = this.conversationManager.getConversationState(userId);
         const messageCount = conversationState?.messageCount || 0;
         
@@ -83,34 +95,20 @@ export class MessageHandler {
           shouldSendLink = true;
           logger.info('OF link approved: explicit sexual intent detected');
         }
-      } 
-      // Step 3: Fallback to template matching (NO API call)
+      }
+      // PRIORITY 3: Use AI (only if both templates and intent fail)
       else {
-        const match = this.templateMatcher.findMatch(userMessage);
+        logger.info('No script match found, switching to Gemini AI...');
+        response = await this.aiHandler.generateResponse(
+          userMessage,
+          this.templateMatcher.getSystemPrompt()
+        );
+        source = 'ai_gemini';
         
-        if (match && match.confidence >= 0.5) {
-          response = match.response;
-          source = match.source === 'training_data' ? 'script_training' : 'script_template';
-          logger.info(`Template matched: ${match.templateId}`);
-          
-          if (match.sendLink) {
-            shouldSendLink = true;
-          }
-        }
-        // Step 4: Use AI (only if above fails)
-        else {
-          logger.info('No script match found, switching to Gemini AI...');
-          response = await this.aiHandler.generateResponse(
-            userMessage,
-            this.templateMatcher.getSystemPrompt()
-          );
-          source = 'ai_gemini';
-          
-          // Check if user message contains sexual content keywords
-          if (this.templateMatcher.isSexualContent(userMessage)) {
-            shouldSendLink = true;
-            logger.info('Sexual content detected - should send OF link');
-          }
+        // Check if user message contains sexual content keywords
+        if (this.templateMatcher.isSexualContent(userMessage)) {
+          shouldSendLink = true;
+          logger.info('Sexual content detected - should send OF link');
         }
       }
 

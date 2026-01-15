@@ -38,37 +38,37 @@
       "triggers": ["hi", "hey", "hello", "hii", "hiii", "heyy", "heyyy", "yo", "sup", "wassup", "whats up", "what's up", "how u", "hru", "hi there", "hey there", "hello there", "heya"],
       "responses": [
         "hiii :3",
-        "heyy",
-        "hiii how are you",
-        "hiiii",
-        "hey whats up",
-        "hii :)",
-        "heyy whats up"
+        "heyy 😋",
+        "hiiii whatchu doing",
+        "heyyy",
+        "whats up cutie",
+        "hii 💕",
+        "heyy wuts up"
       ]
     },
     {
       "id": "how_are_you",
       "triggers": ["how are you", "hru", "how r u", "how u doing", "hows it going", "how are u", "wyd", "what you doing", "whatcha doing", "how's it", "hows it", "whats good", "how you been", "hows life"],
       "responses": [
-        "doing fine hbu? :3",
-        "im good hehe wbu?",
-        "pretty good wbu?",
-        "im doing okay hehe you?",
-        "im good how bout u",
-        "im alright :) how are you",
-        "doing fine how u doing"
+        "doing good hbu 😊",
+        "im alright wbu",
+        "pretty decent 💭 wbu",
+        "im good hehe you",
+        "im solid hbu",
+        "doing alright 😏 what about you",
+        "cant complain, you"
       ]
     },
     {
       "id": "compliment_response",
       "triggers": ["cute", "beautiful", "pretty", "gorgeous", "hot", "sexy", "amazing", "stunning", "love your", "youre cute", "youre beautiful", "youre hot", "so hot", "so beautiful", "so pretty", "look good", "looking good", "nice"],
       "responses": [
-        "aww thankyouu hehe",
-        "heheheh thanks thats sweet :3",
-        "thankyouu thats so sweet",
-        "aw thanks hehe",
-        "thanks :) youre sweet",
-        "aww youre making me blush"
+        "aww youre making me blush 😋",
+        "hehe thanks thats so sweet 💕",
+        "stoppp youre gonna make me blush",
+        "aw thanks babe 😊",
+        "thanks youre sweet :p",
+        "aw youre too kind 💋"
       ]
     },
     {
@@ -106,20 +106,20 @@
       "id": "positive_response",
       "triggers": ["yes", "yeah", "yea", "sure", "ok", "okay", "alright", "sounds good", "im down", "down", "bet", "for sure", "definitely"],
       "responses": [
-        "hehehe ofc i dooo",
+        "yay 😋 ofc",
         "yayyy :3",
-        "hehe yay",
-        "yay! :)",
-        "lets do it then"
+        "lets goo",
+        "hehe yes",
+        "bet lets do it"
       ]
     },
     {
       "id": "age_location",
       "triggers": ["asl", "age", "how old", "where are you from", "where you from", "location", "where u from", "how old are you", "ur age"],
       "responses": [
-        "im 21 :3",
-        "21 hehe",
-        "im 21 how old are you"
+        "im 21 💭 you",
+        "21 :p hbu",
+        "21 wbu"
       ]
     },
     {
@@ -144,9 +144,9 @@
       "id": "goodbye",
       "triggers": ["bye", "goodbye", "gotta go", "gtg", "cya", "see you", "later", "goodnight", "gn", "talk later", "bye bye"],
       "responses": [
-        "byee :3 message me on that link ok?",
-        "bye! talk to you there hehe",
-        "see ya!"
+        "byee 💕 message me there",
+        "bye talk to you there hehe",
+        "cya 😊"
       ]
     },
     {
