@@ -1,30 +1,36 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { APIManager } from './api-manager.js';
-import { logger } from './logger.js';
-import fs from 'fs';
-import path from 'path';
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { APIManager } = require('./api-manager');
+const { AIProviderFactory } = require('./ai-provider');
+const logger = require('./logger');
+const fs = require('fs');
+const path = require('path');
 
 /**
- * AI Handler - Uses Gemini FREE tier for response generation
+ * AI Handler - Multi-provider support (Gemini + GPT Nano)
  * Strategy: Only called when template/intent matching fails
- * Uses APIManager for smart key rotation and rate limit handling
+ * Uses AIProviderFactory for automatic provider selection and fallback
  */
-export class AIHandler {
+class AIHandler {
   constructor() {
     this.apiManager = new APIManager();
-    this.clientMap = new Map(); // Map of key -> GoogleGenerativeAI client
+    
+    // Get GPT Nano key if available
+    const gptNanoKey = process.env.GPT_NANO_API_KEY || null;
+    
+    // Initialize provider factory with both providers
+    this.providerFactory = new AIProviderFactory(this.apiManager, gptNanoKey);
     this.trainingExamples = this.loadTrainingExamples();
     
-    // Initialize clients for each key
-    this.apiManager.keys.forEach(key => {
-      this.clientMap.set(key, new GoogleGenerativeAI(key));
-    });
-
-    if (this.apiManager.keys.length === 0) {
+    logger.info(`AI Handler initialized`);
+    if (this.apiManager.geminiKeys.length === 0) {
       logger.warn('No Gemini API keys - using templates only');
     } else {
-      logger.info(`AI ready: ${this.apiManager.keys.length} Gemini key(s)`);
-      logger.info('API rotation enabled - will switch keys if rate limited');
+      logger.info(`Primary: Gemini (${this.apiManager.geminiKeys.length} keys)`);
+    }
+    if (gptNanoKey) {
+      logger.info(`Fallback: GPT Nano ✓`);
+    } else {
+      logger.info(`Fallback: GPT Nano (waiting for API key)`);
     }
   }
 
@@ -71,31 +77,18 @@ export class AIHandler {
   }
 
   /**
-   * Generate response using Gemini with smart key rotation
+   * Generate response using multi-provider system
+   * Automatically tries Gemini first, falls back to GPT Nano if needed
    */
   async generateResponse(userMessage, systemPrompt) {
-    // No keys? Use fallback
-    if (!this.apiManager.hasAvailableKeys()) {
-      logger.warn('No available API keys - using fallback');
+    // Check if any provider is available
+    const status = this.providerFactory.getStatus();
+    if (!status.primary.available && !status.fallback.available) {
+      logger.warn('No available AI providers - using fallback');
       return this.getFallbackResponse();
     }
 
     try {
-      // Get next available key
-      const apiKey = this.apiManager.getNextKey();
-      if (!apiKey) {
-        logger.error('All API keys exhausted');
-        return this.getFallbackResponse();
-      }
-
-      const client = this.clientMap.get(apiKey);
-      if (!client) {
-        logger.error('Client not found for API key');
-        return this.getFallbackResponse();
-      }
-
-      const model = client.getGenerativeModel({ model: 'gemini-2.5-flash' });
-
       // Build natural prompt using training context
       const conversationContext = this.buildConversationContext();
       
@@ -109,27 +102,14 @@ The user just said: "${userMessage}"
 
 Respond naturally in 1-2 short sentences. Keep it casual and friendly, like you're texting.`;
 
-      logger.info(`Making AI request (key ${this.apiManager.currentKeyIndex + 1}/${this.apiManager.keys.length})`);
+      logger.info(`Making AI request using ${this.providerFactory.getProvider().getName()}`);
       
-      const result = await model.generateContent(prompt);
-      let response = result.response.text().trim();
-
-      // Clean response
-      response = response
-        .replace(/^(Yuki:|Assistant:|Bot:|You:|Me:)\s*/i, '')
-        .replace(/^["']|["']$/g, '')
-        .replace(/^\*\*|^\*\*|^__|^__/g, '')  // Remove markdown emphasis
-        .trim();
-
-      // Record successful API call
-      this.apiManager.recordSuccess();
+      // Use provider factory - handles provider selection and fallback
+      const response = await this.providerFactory.generateResponse(prompt, systemPrompt);
       
       return response;
 
     } catch (error) {
-      // Record the error
-      this.apiManager.recordError(error);
-      
       logger.warn(`AI error: ${error.message}`);
       return this.getFallbackResponse();
     }
@@ -150,4 +130,13 @@ Respond naturally in 1-2 short sentences. Keep it casual and friendly, like you'
     ];
     return fallbacks[Math.floor(Math.random() * fallbacks.length)];
   }
+
+  /**
+   * Get provider status
+   */
+  getStatus() {
+    return this.providerFactory.getStatus();
+  }
 }
+
+module.exports = { AIHandler };

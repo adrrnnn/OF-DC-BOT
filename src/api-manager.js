@@ -3,25 +3,38 @@ import { logger } from './logger.js';
 /**
  * API Manager - Handles API key rotation and rate limit tracking
  * 
- * Strategy: Minimize API calls by using templates/intent first
- * Only call Gemini when absolutely necessary
- * Rotate between 3 free tier keys to maximize quota
+ * Strategy:
+ * 1. Try Gemini first (free tier with rotation)
+ * 2. Fall back to GPT Nano when Gemini exhausted
+ * 3. Minimize API calls by using templates/intent first
+ * 4. Only call AI when absolutely necessary
  */
 export class APIManager {
   constructor() {
-    // Load API keys from env
-    this.keys = [
+    // Load Gemini keys (free tier rotation)
+    this.geminiKeys = [
       process.env.GEMINI_API_KEY_1,
       process.env.GEMINI_API_KEY_2,
       process.env.GEMINI_API_KEY_3
     ].filter(key => key && key.length > 0);
 
-    if (this.keys.length === 0) {
-      logger.warn('No Gemini API keys found in .env');
+    // Load GPT Nano key (fallback provider)
+    this.gptNanoKey = process.env.GPT_NANO_API_KEY || null;
+
+    if (this.geminiKeys.length === 0) {
+      logger.warn('No Gemini API keys found - will use templates only until GPT Nano available');
+    } else {
+      logger.info(`Gemini: ${this.geminiKeys.length} key(s)`);
     }
 
-    // Track usage per key
-    this.keyStats = this.keys.map((key, index) => ({
+    if (this.gptNanoKey) {
+      logger.info('GPT Nano: Available (will use as fallback)');
+    } else {
+      logger.warn('GPT Nano: Not configured (add GPT_NANO_API_KEY to .env to enable)');
+    }
+
+    // Track Gemini usage
+    this.geminiStats = this.geminiKeys.map((key, index) => ({
       index: index,
       key: key,
       requests: 0,
@@ -31,58 +44,76 @@ export class APIManager {
       quotaExhausted: false
     }));
 
-    // Current key index
-    this.currentKeyIndex = 0;
+    // Track which provider is active
+    this.currentProvider = 'gemini'; // 'gemini' or 'gpt_nano'
+    this.currentGeminiKeyIndex = 0;
     this.totalRequests = 0;
     this.totalErrors = 0;
-    this.lastRotation = Date.now();
   }
 
   /**
-   * Get next available API key
-   * Rotates to next key if current is rate limited or quota exhausted
+   * Get next available Gemini key or fallback to GPT Nano
    */
   getNextKey() {
-    if (this.keys.length === 0) {
-      logger.error('No API keys available');
+    // Try Gemini first
+    if (this.geminiKeys.length > 0) {
+      const geminiKey = this.getNextGeminiKey();
+      if (geminiKey) {
+        this.currentProvider = 'gemini';
+        return { key: geminiKey, provider: 'gemini' };
+      }
+    }
+
+    // Fallback to GPT Nano
+    if (this.gptNanoKey) {
+      this.currentProvider = 'gpt_nano';
+      logger.info('All Gemini keys exhausted - switching to GPT Nano');
+      return { key: this.gptNanoKey, provider: 'gpt_nano' };
+    }
+
+    logger.error('No API keys available (no Gemini, no GPT Nano)');
+    return null;
+  }
+
+  /**
+   * Get next available Gemini key
+   */
+  getNextGeminiKey() {
+    if (this.geminiKeys.length === 0) {
       return null;
     }
 
-    // Check if current key is viable
-    const currentKey = this.keyStats[this.currentKeyIndex];
+    const currentKey = this.geminiStats[this.currentGeminiKeyIndex];
     if (!currentKey.rateLimited && !currentKey.quotaExhausted) {
       return currentKey.key;
     }
 
-    // Find next viable key
-    for (let i = 0; i < this.keyStats.length; i++) {
-      const stat = this.keyStats[i];
+    for (let i = 0; i < this.geminiStats.length; i++) {
+      const stat = this.geminiStats[i];
       if (!stat.rateLimited && !stat.quotaExhausted) {
-        logger.info(`Rotating API key: ${this.currentKeyIndex} → ${i}`);
-        this.currentKeyIndex = i;
-        this.lastRotation = Date.now();
+        logger.info(`Rotating Gemini key: ${this.currentGeminiKeyIndex} → ${i}`);
+        this.currentGeminiKeyIndex = i;
         return stat.key;
       }
     }
 
-    // All keys exhausted
-    logger.error('All API keys rate limited or quota exhausted');
+    logger.warn('All Gemini keys rate limited or quota exhausted');
     return null;
   }
 
   /**
    * Record successful API call
    */
-  recordSuccess(keyIndex = this.currentKeyIndex) {
-    if (keyIndex < this.keyStats.length) {
-      this.keyStats[keyIndex].requests++;
-      this.keyStats[keyIndex].lastUsed = Date.now();
+  recordSuccess() {
+    if (this.currentProvider === 'gemini' && this.currentGeminiKeyIndex < this.geminiStats.length) {
+      const stat = this.geminiStats[this.currentGeminiKeyIndex];
+      stat.requests++;
+      stat.lastUsed = Date.now();
       this.totalRequests++;
 
-      // Log every 10th request
       if (this.totalRequests % 10 === 0) {
         logger.info(`Total API requests: ${this.totalRequests}`);
-        this.logKeyStats();
+        this.logStatus();
       }
     }
   }
@@ -90,53 +121,55 @@ export class APIManager {
   /**
    * Record API error/rate limit
    */
-  recordError(error, keyIndex = this.currentKeyIndex) {
-    if (keyIndex >= this.keyStats.length) return;
+  recordError(error) {
+    if (this.currentProvider !== 'gemini') {
+      logger.warn(`${this.currentProvider} error: ${error.message}`);
+      return;
+    }
 
-    const stat = this.keyStats[keyIndex];
+    if (this.currentGeminiKeyIndex >= this.geminiStats.length) return;
+
+    const stat = this.geminiStats[this.currentGeminiKeyIndex];
     stat.errors++;
     this.totalErrors++;
 
-    // Detect rate limit vs other errors
     const errorMsg = error.message?.toLowerCase() || '';
     
     if (errorMsg.includes('429') || errorMsg.includes('rate limit') || 
         errorMsg.includes('quota') || errorMsg.includes('too many')) {
       stat.rateLimited = true;
-      logger.warn(`API key ${keyIndex} rate limited. Rotating...`);
-      
-      // Try to use next key
-      if (this.keys.length > 1) {
-        this.getNextKey();
-      }
+      logger.warn(`Gemini key ${this.currentGeminiKeyIndex} rate limited`);
     }
 
     if (errorMsg.includes('quota') || errorMsg.includes('exhausted')) {
       stat.quotaExhausted = true;
-      logger.error(`API key ${keyIndex} quota exhausted`);
+      logger.error(`Gemini key ${this.currentGeminiKeyIndex} quota exhausted`);
     }
 
-    logger.error(`API Error on key ${keyIndex}: ${error.message}`);
+    logger.error(`Gemini error on key ${this.currentGeminiKeyIndex}: ${error.message}`);
   }
 
   /**
-   * Log current key statistics
+   * Log current status
    */
-  logKeyStats() {
-    logger.info('=== API Key Statistics ===');
-    this.keyStats.forEach((stat, index) => {
+  logStatus() {
+    logger.info('=== API Status ===');
+    logger.info(`Primary: Gemini (${this.geminiKeys.length} keys)`);
+    this.geminiStats.forEach((stat, index) => {
       const status = stat.quotaExhausted ? 'EXHAUSTED' : 
                      stat.rateLimited ? 'RATE LIMITED' : 'ACTIVE';
-      logger.info(`Key ${index}: ${stat.requests} requests, ${stat.errors} errors [${status}]`);
+      logger.info(`  Key ${index}: ${stat.requests} requests, ${stat.errors} errors [${status}]`);
     });
-    logger.info(`Total: ${this.totalRequests} requests, ${this.totalErrors} errors`);
+    logger.info(`Fallback: GPT Nano ${this.gptNanoKey ? '✓' : '✗'}`);
+    logger.info(`Total requests: ${this.totalRequests}`);
   }
 
   /**
-   * Check if API is available for use
+   * Check if any API is available
    */
   hasAvailableKeys() {
-    return this.keyStats.some(stat => !stat.quotaExhausted && !stat.rateLimited);
+    const hasGemini = this.geminiStats.some(s => !s.quotaExhausted && !s.rateLimited);
+    return hasGemini || !!this.gptNanoKey;
   }
 
   /**
@@ -144,17 +177,12 @@ export class APIManager {
    */
   getStatus() {
     return {
-      totalKeys: this.keys.length,
-      activeKeys: this.keyStats.filter(s => !s.quotaExhausted && !s.rateLimited).length,
+      geminiKeys: this.geminiKeys.length,
+      activeGeminiKeys: this.geminiStats.filter(s => !s.quotaExhausted && !s.rateLimited).length,
+      gptNanoAvailable: !!this.gptNanoKey,
+      currentProvider: this.currentProvider,
       totalRequests: this.totalRequests,
-      totalErrors: this.totalErrors,
-      currentKeyIndex: this.currentKeyIndex,
-      keyStats: this.keyStats.map(s => ({
-        index: s.index,
-        requests: s.requests,
-        errors: s.errors,
-        status: s.quotaExhausted ? 'exhausted' : s.rateLimited ? 'rate_limited' : 'active'
-      }))
+      totalErrors: this.totalErrors
     };
   }
 }
