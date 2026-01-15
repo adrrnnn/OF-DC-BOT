@@ -45,6 +45,28 @@ export class MessageHandler {
         return null; // Don't send a response, just end conversation
       }
 
+      // Check if user is trying to chat on Discord instead of OF - REDIRECT AGGRESSIVELY
+      if (this.isAvoidingOF(userMessage)) {
+        logger.info(`User ${userId} trying to avoid OF - sending aggressive redirect`);
+        const ofLink = process.env.OF_LINK;
+        const redirectMessage = `nah baby all the fun stuff is on my OF hehe\nits free to sub :3\n${ofLink}\nlmk when u do ok? <33`;
+        
+        // Mark that we sent link and end conversation
+        this.conversationManager.markOFLinkSent(userId);
+        this.conversationManager.endConversation(userId);
+        
+        const delay = this.getRandomDelay();
+        await new Promise(r => setTimeout(r, delay));
+        
+        return {
+          userId,
+          message: redirectMessage,
+          source: 'aggressive_redirect',
+          hasOFLink: true,
+          closeChat: true
+        };
+      }
+
       let response;
       let source;
       let shouldSendLink = false;
@@ -86,14 +108,17 @@ export class MessageHandler {
 
       // Build final response with OF link if needed
       let finalResponse = response;
+      let closeChat = false;
       if (shouldSendLink) {
         const ofLink = process.env.OF_LINK;
         const linkMessage = this.templateMatcher.getOFLinkMessage(ofLink);
         finalResponse = `${response}\n\n${linkMessage}`;
         
-        // Mark that we sent the link
+        // Mark that we sent the link AND close conversation
         this.conversationManager.markOFLinkSent(userId);
-        logger.info('OF link appended to response');
+        this.conversationManager.endConversation(userId);
+        closeChat = true;
+        logger.info('OF link appended to response - CLOSING CHAT');
       }
 
       // Human-like delay before responding
@@ -105,7 +130,8 @@ export class MessageHandler {
         userId,
         message: finalResponse,
         source,
-        hasOFLink: shouldSendLink
+        hasOFLink: shouldSendLink,
+        closeChat: closeChat
       };
 
     } catch (error) {
@@ -141,6 +167,38 @@ export class MessageHandler {
       'subscribe', 'membership', 'see it all'
     ];
     return ofKeywords.some(kw => lower.includes(kw));
+  }
+
+  /**
+   * Detect if user is trying to avoid OF and chat on Discord instead
+   * Examples: "i prefer to talk here", "lets chat on discord", "talk here", etc
+   */
+  isAvoidingOF(message) {
+    if (!message) return false;
+    const lower = message.toLowerCase();
+    
+    // Keywords that indicate user wants to chat on Discord/here instead of OF
+    const avoidOFKeywords = [
+      'prefer to talk here',
+      'prefer to chat here',
+      'talk here',
+      'chat here',
+      'prefer here',
+      'prefer discord',
+      'talk on discord',
+      'chat on discord',
+      'here is better',
+      'like talking here',
+      'like to talk here',
+      'stay here',
+      'just chat here',
+      'just talk here',
+      'dont wanna go',
+      'not going to',
+      'not going there'
+    ];
+    
+    return avoidOFKeywords.some(kw => lower.includes(kw));
   }
 }
 
