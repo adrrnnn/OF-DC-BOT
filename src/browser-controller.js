@@ -531,6 +531,14 @@ export class BrowserController {
               continue;
             }
             
+            // CRITICAL: Skip messages from the bot itself (karen_1962.ec_19875)
+            // This prevents the bot from re-processing its own messages
+            const botUsername = 'karen_1962.ec_19875';
+            if (author === botUsername || author.toLowerCase() === botUsername.toLowerCase()) {
+              debug.errors.push('Message is from bot, skipping');
+              continue;
+            }
+            
             // Find actual message content by skipping metadata
             // CRITICAL FIX: Remove Discord UI button text and React menu items
             for (let i = lines.length - 1; i >= 0; i--) {
