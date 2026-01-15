@@ -2,148 +2,258 @@
   "templates": [
     {
       "id": "greeting",
-      "triggers": ["hi", "hey", "hello", "hii", "hiii", "heyy", "heyyy", "yo", "sup", "wassup", "whats up"],
+      "triggers": ["hi", "hey", "hello", "hii", "hiii", "heyy", "heyyy", "yo", "sup", "wassup", "whats up", "what's up", "how u", "hru", "hi there", "hey there", "hello there", "heya"],
       "responses": [
         "hiii :3",
         "heyy",
         "hiii hehe",
         "hiiii",
-        "hii :)"
+        "hii :)",
+        "hey whats up",
+        "hey! :)",
+        "hii how are you"
       ]
     },
     {
       "id": "how_are_you",
-      "triggers": ["how are you", "hru", "how r u", "how u doing", "hows it going", "how are u", "wyd", "what you doing", "whatcha doing"],
+      "triggers": ["how are you", "hru", "how r u", "how u doing", "hows it going", "how are u", "wyd", "what you doing", "whatcha doing", "how's it", "hows it", "whats good", "how you been", "hows life"],
       "responses": [
         "doing fine hbu? :3",
         "im good hehe wbu?",
         "pretty good :) hbu?",
-        "im doing okay hehe you?"
+        "im doing okay hehe you?",
+        "im good! how bout you",
+        "doing pretty good, just chilling hbu?",
+        "im alright :) wbu?"
       ]
     },
     {
       "id": "compliment_response",
-      "triggers": ["cute", "beautiful", "pretty", "gorgeous", "hot", "sexy", "amazing", "stunning", "love your"],
+      "triggers": ["cute", "beautiful", "pretty", "gorgeous", "hot", "sexy", "amazing", "stunning", "love your", "youre cute", "youre beautiful", "youre hot", "so hot", "so beautiful", "so pretty", "look good", "looking good", "nice"],
       "responses": [
         "aww thankyouu hehe",
         "heheheh arent you such a sweet talker :3",
         "thankyouu :3 thats so sweet",
-        "aww thanks hehe felt really cute there too"
+        "aww thanks hehe felt really cute there too",
+        "aw thanks that's sweet of you",
+        "hehe thanks :) you're sweet",
+        "aww you're making me blush"
       ]
     },
     {
       "id": "pics_request",
-      "triggers": ["send pic", "send pics", "can i see", "show me", "send nudes", "send photo", "can you send", "got pics", "see you", "see ur", "see your"],
+      "triggers": ["send pic", "send pics", "can i see", "show me", "send nudes", "send photo", "can you send", "got pics", "see you", "see ur", "see your", "pics of you", "picture", "photo", "image", "send picture", "show pictures"],
       "responses": [
         "i meann i do send photos but not here :p",
         "hmnn maybee but i dont really do that here tho :p",
         "i dont really send here hehe",
-        "i have that kind of content just not here tho"
+        "i have that kind of content just not here tho",
+        "not really on discord hehe",
+        "i dont send stuff here sorry :(",
+        "nah i keep that elsewhere hehe"
       ],
       "followUp": true
     },
     {
       "id": "where_then",
-      "triggers": ["where then", "where do you", "how can i see", "where can i", "other option"],
+      "triggers": ["where then", "where do you", "how can i see", "where can i", "other option", "where else", "anywhere else", "other platform", "other place"],
       "responses": [
         "i want to tell youuu but youd probably judge me lol would you?",
-        "hmm well theres somewhere else :3 you wouldnt judge me right?"
+        "hmm well theres somewhere else :3 you wouldnt judge me right?",
+        "depends.. you promise not to judge me?",
+        "theres another place but.. would you judge me?"
       ],
       "followUp": true
     },
     {
       "id": "wont_judge",
-      "triggers": ["no", "nope", "i wont", "never", "no judgement", "of course not", "wouldnt judge", "wont judge"],
+      "triggers": ["no", "nope", "i wont", "never", "no judgement", "of course not", "wouldnt judge", "wont judge", "promise", "dont judge", "no way", "never judge", "i promise"],
       "responses": [
         "welll i post most of my stuff for free on onlyfans :3 that probably turned you off right?",
-        "i do onlyfans hehe that probably turned you off :<"
+        "i do onlyfans hehe that probably turned you off :<",
+        "okay so i do onlyfans :p would that be weird?",
+        "i have an onlyfans hehe hope that doesnt change how you see me"
       ],
       "sendLink": true
     },
     {
       "id": "sexual_direct",
-      "triggers": ["pussy", "tits", "boobs", "ass", "nudes", "naked", "horny", "dick", "cock", "fuck", "sex", "nipples", "feet"],
+      "triggers": ["pussy", "tits", "boobs", "ass", "nudes", "naked", "horny", "dick", "cock", "fuck", "sex", "nipples", "feet", "blowjob", "sext", "horny", "cum"],
       "responses": [
         "oh my lol arent you straightforward? :p i dont really do that here tho",
-        "hahaha well i do have that kind of content just not here :3"
+        "hahaha well i do have that kind of content just not here :3",
+        "lol someone's excited hehe i dont do that here tho",
+        "hehe youre bold :p but nah not here"
       ],
       "sendLink": true
     },
     {
       "id": "positive_response",
-      "triggers": ["yes", "yeah", "yea", "sure", "ok", "okay", "alright", "sounds good", "im down", "down", "bet"],
+      "triggers": ["yes", "yeah", "yea", "sure", "ok", "okay", "alright", "sounds good", "im down", "down", "bet", "for sure", "definitely"],
       "responses": [
         "hehehe ofc i dooo",
         "yayyy :3",
-        "hehe glad you think so"
+        "hehe glad you think so",
+        "yay! :)",
+        "lets do it then hehe"
       ]
     },
     {
       "id": "age_location",
-      "triggers": ["asl", "age", "how old", "where are you from", "where you from", "location", "where u from"],
+      "triggers": ["asl", "age", "how old", "where are you from", "where you from", "location", "where u from", "how old are you", "ur age"],
       "responses": [
         "im 21 :3 hbu?",
-        "21 hehe wbu?"
+        "21 hehe wbu?",
+        "im 21! how old are you",
+        "21 years old :) where are you from?"
       ]
     },
     {
       "id": "onlyfans_question",
-      "triggers": ["onlyfans", "only fans", "of", "do you sell", "are you a seller", "seller"],
+      "triggers": ["onlyfans", "only fans", "of", "do you sell", "are you a seller", "seller", "content creator", "model", "instagram"],
       "responses": [
         "nooo hahahahah just a model :p would you judge me if i did that?",
-        "yeah i do onlyfans hehe its free to sub tho :3"
+        "yeah i do onlyfans hehe its free to sub tho :3",
+        "i do onlyfans actually! its free to subscribe tho hehe",
+        "yeah i have an onlyfans :p want the link?"
       ],
       "sendLink": true
     },
     {
       "id": "cant_subscribe",
-      "triggers": ["dont have card", "no card", "cant subscribe", "cant sub", "dont have money", "too expensive", "i cant"],
+      "triggers": ["dont have card", "no card", "cant subscribe", "cant sub", "dont have money", "too expensive", "i cant", "poor", "broke", "no payment"],
       "responses": [
         "aww thats too bad :( i mean you could make one but thats up to you hehe",
-        "well thats too bad really :p"
+        "well thats too bad really :p",
+        "aw rip :( but there's free content too hehe",
+        "thats sad but theres still free stuff hehe"
       ]
     },
     {
       "id": "goodbye",
-      "triggers": ["bye", "goodbye", "gotta go", "gtg", "cya", "see you", "later", "goodnight", "gn"],
+      "triggers": ["bye", "goodbye", "gotta go", "gtg", "cya", "see you", "later", "goodnight", "gn", "talk later", "bye bye"],
       "responses": [
         "byee :3 hopefully you message me there alright?",
-        "ciao! if you want to talk some more add me on the link i sent hehe"
+        "ciao! if you want to talk some more add me on the link i sent hehe",
+        "bye! talk to you later maybe :)",
+        "see ya! message me on the link hehe"
       ]
     },
     {
       "id": "snapchat",
-      "triggers": ["snap", "snapchat", "whats your snap", "got snap", "sc"],
+      "triggers": ["snap", "snapchat", "whats your snap", "got snap", "sc", "snap me"],
       "responses": [
         "i dont have snap and i dont really use this app much tbh",
-        "nah i dont use snap hehe i use something else tho :3"
+        "nah i dont use snap hehe i use something else tho :3",
+        "no snap sorry! but theres other ways to reach me hehe"
       ],
       "followUp": true
     },
     {
       "id": "number_request",
-      "triggers": ["number", "phone", "text me", "whats your number"],
+      "triggers": ["number", "phone", "text me", "whats your number", "phone number", "call me"],
       "responses": [
         "i dont really give out my number hehe but theres somewhere else we can talk :3",
-        "nah i dont give that out lol but i have somewhere better hehe"
+        "nah i dont give that out lol but i have somewhere better hehe",
+        "cant do that sorry :( but theres another place hehe"
       ],
       "followUp": true
     },
     {
       "id": "what_do_you_do",
-      "triggers": ["what do you do", "what you do", "job", "work"],
+      "triggers": ["what do you do", "what you do", "job", "work", "profession", "career"],
       "responses": [
         "you wouldnt judge me right?",
-        "hmm well you promise not to judge? :p"
+        "hmm well you promise not to judge? :p",
+        "well.. are you sure you wont judge me?"
       ],
       "followUp": true
     },
     {
       "id": "interested",
-      "triggers": ["interested", "wanna", "want to", "lets", "down to"],
+      "triggers": ["interested", "wanna", "want to", "lets", "down to", "interested in", "would you"],
       "responses": [
         "hehe maybe :3 depends",
-        "ooo maybe hehe"
+        "ooo maybe hehe",
+        "hmm depends what you mean hehe",
+        "ooo intrigued :p"
+      ]
+    },
+    {
+      "id": "laugh_response",
+      "triggers": ["haha", "hehe", "lol", "lmao", "rofl", "funny", "hilarious", "made me laugh"],
+      "responses": [
+        "hehe glad you think so :p",
+        "haha youre funny too",
+        "lol you got jokes",
+        "hehehehe youre silly"
+      ]
+    },
+    {
+      "id": "name_question",
+      "triggers": ["whats your name", "your name", "name", "who are you", "who r u"],
+      "responses": [
+        "im yuki! wbu?",
+        "yuki :3 whats yours?",
+        "im yuki! nice to meet you",
+        "yuki! what about you?"
+      ]
+    },
+    {
+      "id": "romantic_interest",
+      "triggers": ["fall for you", "like you", "love you", "crush on you", "attracted to you", "interested in dating"],
+      "responses": [
+        "aw thats sweet but we just met hehe",
+        "youre cute but.. we dont really know each other :p",
+        "aw you're sweet :) but we just started talking lol"
+      ]
+    },
+    {
+      "id": "dm_continued",
+      "triggers": ["keep talking", "chat with you", "talk some more", "continue", "more", "what else", "tell me more"],
+      "responses": [
+        "sure! whats on your mind",
+        "yeah of course hehe",
+        "yeah lets keep talking :)",
+        "ofc! whatcha wanna know"
+      ]
+    },
+    {
+      "id": "night_greeting",
+      "triggers": ["night", "goodnight", "going to sleep", "sleep", "tired", "sleepy"],
+      "responses": [
+        "goodnight! sleep well hehe :3",
+        "nite! talk soon maybe?",
+        "sleeeep well! :)",
+        "gn hehe talk later"
+      ]
+    },
+    {
+      "id": "morning_greeting",
+      "triggers": ["morning", "good morning", "gm", "just woke up", "woke up", "wake"],
+      "responses": [
+        "morningg :3 hows your day",
+        "gm! hows it going",
+        "morning! :) how are you"
+      ]
+    },
+    {
+      "id": "music_interest",
+      "triggers": ["music", "song", "artist", "listen to", "favorite song", "what music"],
+      "responses": [
+        "i like chill music hehe what about you",
+        "good question! depends on my mood :p",
+        "i listen to a bit of everything hehe"
+      ]
+    },
+    {
+      "id": "random_question",
+      "triggers": ["what", "why", "how", "when", "who"],
+      "responses": [
+        "thats an interesting question hehe",
+        "hmm good point :p",
+        "ooo curious arent you",
+        "umm let me think about that"
       ]
     }
   ],

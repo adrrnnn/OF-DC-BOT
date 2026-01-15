@@ -77,7 +77,7 @@ export class MessageHandler {
       else {
         const match = this.templateMatcher.findMatch(userMessage);
         
-        if (match && match.confidence >= 0.6) {
+        if (match && match.confidence >= 0.5) {
           response = match.response;
           source = match.source === 'training_data' ? 'script_training' : 'script_template';
           logger.info(`Template matched: ${match.templateId}`);
