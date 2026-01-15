@@ -237,7 +237,7 @@ class DiscordOFBot {
 
         // If currently in conversation, only check for messages from that user
         if (this.inConversationWith) {
-          const dm = { userId: this.inConversationWith };
+          const dm = { userId: this.inConversationWith, username: `user_${this.inConversationWith.substring(0, 8)}` };
           const hasNewMessages = await this.checkDMForNewMessages(dm);
           
           if (hasNewMessages) {
@@ -338,6 +338,7 @@ class DiscordOFBot {
       // Check if we already replied to this exact message (using cleaned content)
       if (this.conversationManager.getLastMessageId(userId) === cleanContent) {
         // Already replied to this message
+        logger.debug(`Deduplication check passed: lastMessageId matches cleaned content`);
         return false;
       }
 
@@ -356,7 +357,16 @@ class DiscordOFBot {
    */
   async processDM(dm) {
     try {
-      const { userId, username } = dm;
+      let { userId, username } = dm;
+
+      // If username missing (happens when continuing conversation), extract from latest message
+      if (!username && userId) {
+        const messages = await this.browser.getMessages();
+        if (messages.length > 0) {
+          const userMsg = messages.find(m => m.author && m.author !== this.browser.botUsername && m.author !== 'You');
+          username = userMsg?.author || `user_${userId.substring(0, 8)}`;
+        }
+      }
 
       logger.info(`Processing DM from ${username}`);
 
