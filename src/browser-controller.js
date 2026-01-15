@@ -522,13 +522,29 @@ export class BrowserController {
             } else {
               // Fallback: extract from first line (more reliable than before)
               const firstLine = lines[0];
-              // Look for username before timestamp separator
-              const match = firstLine.match(/^([^—]+?)(?:—|—)/);
-              if (match && match[1].trim().length > 0) {
+              // Look for username before timestamp separator (handles both — and em dash)
+              const match = firstLine.match(/^([^——\d\[\]]+?)(?:—|—|$)/);
+              if (match && match[1].trim().length > 0 && match[1].trim() !== 'четверг' && !/^[а-яё\s]+$/i.test(match[1].trim())) {
                 author = match[1].trim();
               } else {
-                // If no separator, take first meaningful word (skip timestamps)
-                const words = firstLine.split(/[\s—]+/).filter(w => !/^\d{1,2}:\d{2}/.test(w));
+                // If no separator, take first meaningful word (skip timestamps and date words)
+                const words = firstLine.split(/[\s—]+/).filter(w => {
+                  // Skip timestamps (HH:MM format)
+                  if (/^\d{1,2}:\d{2}/.test(w)) return false;
+                  // Skip day of week and date markers
+                  if (/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|понедельник|вторник|среда|четверг|пятница|суббота|воскресенье)$/i.test(w)) return false;
+                  // Skip months in Russian/English
+                  if (/^(January|February|March|April|May|June|July|August|September|October|November|December|января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)$/i.test(w)) return false;
+                  // Skip years
+                  if (/^\d{4}$/.test(w)) return false;
+                  // Skip г. (Russian abbreviation for "year")
+                  if (/^г\.?$/.test(w)) return false;
+                  // Skip в. (Russian abbreviation for "at/in")
+                  if (/^в\.?$/.test(w)) return false;
+                  // Skip brackets with times like [21:05]
+                  if (/^\[\d{1,2}:\d{2}\]$/.test(w)) return false;
+                  return true;
+                });
                 if (words.length > 0) {
                   author = words[0];
                 }

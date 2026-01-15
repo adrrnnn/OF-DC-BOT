@@ -289,15 +289,35 @@ class DiscordOFBot {
       }
 
       // Get latest USER message (not from us)
-      // Filter out: "You" (Discord's label), "unknown", and bot's own username
+      // Filter out: "You" (Discord's label), "unknown", bot username, and invalid authors (timestamps)
       const botUsername = this.browser.botUsername || 'You';
       const latestUserMessage = messages
         .reverse()
-        .find(msg => 
-          msg.author !== 'You' && 
-          msg.author.toLowerCase() !== 'unknown' &&
-          msg.author.toLowerCase() !== botUsername.toLowerCase()
-        );
+        .find(msg => {
+          const author = msg.author || '';
+          
+          // Skip invalid authors
+          if (!author || author === 'You' || author.toLowerCase() === 'unknown') {
+            return false;
+          }
+          
+          // Skip bot's own messages
+          if (author.toLowerCase() === botUsername.toLowerCase()) {
+            return false;
+          }
+          
+          // Skip timestamps in bracket format [HH:MM]
+          if (/^\[\d{1,2}:\d{2}\]$/.test(author)) {
+            return false;
+          }
+          
+          // Skip if author is just numbers and time separators
+          if (/^[\d:\[\]—\.\s]+$/.test(author)) {
+            return false;
+          }
+          
+          return true;
+        });
 
       if (!latestUserMessage) {
         return false;
@@ -356,17 +376,37 @@ class DiscordOFBot {
       logger.debug(`Found ${messages.length} message(s): ${JSON.stringify(messages)}`);
 
       // Get latest USER message (not our own)
-      // Filter out: "You" (Discord's label), "unknown", and bot's own username
+      // Filter out: "You" (Discord's label), "unknown", bot username, and invalid authors (timestamps, etc)
       const botUsername = this.browser.botUsername || 'You';
       logger.debug(`Bot username: ${botUsername}`);
       
       const latestUserMessage = messages
         .reverse()
-        .find(msg => 
-          msg.author !== 'You' && 
-          msg.author.toLowerCase() !== 'unknown' &&
-          msg.author.toLowerCase() !== botUsername.toLowerCase()
-        );
+        .find(msg => {
+          const author = msg.author || '';
+          
+          // Skip invalid authors
+          if (!author || author === 'You' || author.toLowerCase() === 'unknown') {
+            return false;
+          }
+          
+          // Skip bot's own messages
+          if (author.toLowerCase() === botUsername.toLowerCase()) {
+            return false;
+          }
+          
+          // Skip timestamps in bracket format [HH:MM]
+          if (/^\[\d{1,2}:\d{2}\]$/.test(author)) {
+            return false;
+          }
+          
+          // Skip if author is just numbers and time separators
+          if (/^[\d:\[\]—\.\s]+$/.test(author)) {
+            return false;
+          }
+          
+          return true;
+        });
 
       if (!latestUserMessage) {
         logger.debug('No user messages found (all filtered as bot or unknown)');
