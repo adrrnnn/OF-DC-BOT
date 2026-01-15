@@ -111,13 +111,14 @@ export class BrowserController {
       this.page.setDefaultTimeout(0);
 
       // Go to Discord login
-      logger.info('Navigating to Discord login');
+      logger.info('Navigating to Discord login (waiting for page to load)...');
       await this.page.goto('https://discord.com/login', {
         waitUntil: 'domcontentloaded',
       });
+      logger.info('Discord login page loaded');
 
       // Wait for login form inputs to appear (no timeout - wait indefinitely)
-      logger.info('Waiting for login form to load...');
+      logger.info('Waiting for login form inputs...');
       await this.page.waitForSelector('input[name="email"]');
       await this.page.type('input[name="email"]', email, { delay: 50 });
 
