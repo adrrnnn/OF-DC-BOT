@@ -53,9 +53,9 @@ export class ConversationManager {
     const conv = this.conversations.get(userId);
     if (!conv) return false;
     
-    // Conversation stays active for 1 hour (allows for follow-ups like "I signed up")
-    const oneHour = 60 * 60 * 1000;
-    if (Date.now() - conv.startTime > oneHour) {
+    // Conversation stays active for 15 seconds, then moves to next in queue
+    const fifteenSeconds = 15 * 1000;
+    if (Date.now() - conv.startTime > fifteenSeconds) {
       this.endConversation(userId);
       return false;
     }
