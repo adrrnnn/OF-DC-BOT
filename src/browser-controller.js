@@ -96,7 +96,7 @@ export class BrowserController {
   }
 
   /**
-   * Login to Discord with 120-second auth/captcha wait
+   * Login to Discord with indefinite wait for auth/captcha/2FA
    */
   async login(email, password) {
     try {
@@ -105,6 +105,10 @@ export class BrowserController {
       // if (loaded) {
       //   ... cookie check ...
       // }
+
+      // DISABLE timeouts during login - user may take time to complete 2FA/captcha
+      this.page.setDefaultNavigationTimeout(0);
+      this.page.setDefaultTimeout(0);
 
       // Go to Discord login
       logger.info('Navigating to Discord login');
@@ -145,6 +149,10 @@ export class BrowserController {
           // Continue checking
         }
       }
+
+      // RE-ENABLE timeouts after login is complete
+      this.page.setDefaultNavigationTimeout(60000);
+      this.page.setDefaultTimeout(60000);
 
       this.isLoggedIn = true;
       await this.saveCookies();
