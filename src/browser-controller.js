@@ -497,6 +497,8 @@ export class BrowserController {
                 const words = firstLine.split(/[\s—]+/).filter(w => {
                   // Skip timestamps (HH:MM format)
                   if (/^\d{1,2}:\d{2}/.test(w)) return false;
+                  // Skip any pure digits (day of month, year fragments, etc)
+                  if (/^\d+$/.test(w)) return false;
                   // Skip day of week and date markers (with optional punctuation like comma)
                   if (/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|понедельник|вторник|среда|четверг|пятница|суббота|воскресенье)[,\.]?$/i.test(w)) return false;
                   // Skip months in Russian/English (with optional punctuation)

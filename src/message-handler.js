@@ -165,16 +165,28 @@ export class MessageHandler {
   /**
    * Check if response mentions OnlyFans/OF content
    * If AI mentions OF, we should send the link
+   * STRICT: Only flag if explicitly mentioning OnlyFans/OF/exclusive content
    */
   mentionsOnlyFans(response) {
     if (!response) return false;
     const lower = response.toLowerCase();
+    // ONLY match explicit OnlyFans/OF mentions - NOT vague words like "there"
     const ofKeywords = [
-      'onlyfans', 'of ', 'exclusive content', 'my content', 'there', 'over there',
-      'see more', 'check out', 'come see', 'talk there', 'dm there',
-      'subscribe', 'membership', 'see it all'
+      'onlyfans',
+      /\bof\b.*(?:content|exclusive|pics|subscription|link|subscribe)/i,
+      'exclusive content',
+      'my of',
+      'my onlyfans'
     ];
-    return ofKeywords.some(kw => lower.includes(kw));
+    
+    return ofKeywords.some(kw => {
+      if (typeof kw === 'string') {
+        return lower.includes(kw);
+      } else if (kw instanceof RegExp) {
+        return kw.test(lower);
+      }
+      return false;
+    });
   }
 
   /**
