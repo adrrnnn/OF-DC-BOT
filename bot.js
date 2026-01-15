@@ -405,6 +405,11 @@ class DiscordOFBot {
             return false;
           }
           
+          // Skip day-of-week words (Russian/English, with optional punctuation like comma)
+          if (/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|понедельник|вторник|среда|четверг|пятница|суббота|воскресенье)[,\.]?$/i.test(author)) {
+            return false;
+          }
+          
           return true;
         });
 

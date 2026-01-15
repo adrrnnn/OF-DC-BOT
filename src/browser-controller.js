@@ -497,10 +497,10 @@ export class BrowserController {
                 const words = firstLine.split(/[\s—]+/).filter(w => {
                   // Skip timestamps (HH:MM format)
                   if (/^\d{1,2}:\d{2}/.test(w)) return false;
-                  // Skip day of week and date markers
-                  if (/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|понедельник|вторник|среда|четверг|пятница|суббота|воскресенье)$/i.test(w)) return false;
-                  // Skip months in Russian/English
-                  if (/^(January|February|March|April|May|June|July|August|September|October|November|December|января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)$/i.test(w)) return false;
+                  // Skip day of week and date markers (with optional punctuation like comma)
+                  if (/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|понедельник|вторник|среда|четверг|пятница|суббота|воскресенье)[,\.]?$/i.test(w)) return false;
+                  // Skip months in Russian/English (with optional punctuation)
+                  if (/^(January|February|March|April|May|June|July|August|September|October|November|December|января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)[,\.]?$/i.test(w)) return false;
                   // Skip years
                   if (/^\d{4}$/.test(w)) return false;
                   // Skip г. (Russian abbreviation for "year")
