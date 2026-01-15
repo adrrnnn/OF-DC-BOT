@@ -462,11 +462,24 @@ export class BrowserController {
             let author = 'Unknown';
             let content = '';
             
+            // CRITICAL: Check if this message is from the current user (bot)
+            // Discord uses data attributes and specific structures for own messages
+            const isOwnMessage = article.getAttribute('data-author-id') === 'self' ||
+                                article.classList.contains('cozy_f5r6ih') ||
+                                article.querySelector('[class*="mentioned"]') === null && 
+                                article.querySelector('img[alt*="karen"]') !== null;
+            
             // Get all text from the article
             const fullText = article.textContent?.trim() || '';
             
             if (!fullText || fullText.length < 3) {
               debug.errors.push('Empty or too short message');
+              continue;
+            }
+            
+            // Skip if this is our own message
+            if (isOwnMessage) {
+              debug.errors.push('Message is from bot (DOM indicator), skipping');
               continue;
             }
             
@@ -479,13 +492,31 @@ export class BrowserController {
             
             // Extract author from message header - CRITICAL FIX
             // Discord uses specific DOM structure for usernames
-            const authorElement = article.querySelector('[class*="username"], [class*="author"], span[role="heading"]') ||
-                                 article.querySelector('span[class*="userName"]') ||
-                                 article.querySelector('[class*="headerText"]');
+            // First try to get from direct DOM elements
+            let authorElement = null;
             
-            if (authorElement?.textContent) {
-              author = authorElement.textContent.trim();
-            } else {
+            // Try multiple selector strategies
+            const selectors = [
+              'h3 > *:first-child',  // Username in h3
+              'span[class*="username"]',
+              '[class*="author"] > span',
+              'img[alt]'  // Avatar with alt text containing username
+            ];
+            
+            for (const selector of selectors) {
+              authorElement = article.querySelector(selector);
+              if (authorElement?.textContent?.trim()) {
+                author = authorElement.textContent.trim();
+                break;
+              }
+            }
+            
+            // If we found an author from DOM, validate it's not too long/complex
+            if (author && author.length > 25) {
+              author = null;  // Too long, probably not a username
+            }
+            
+            if (!author || author.length === 0) {
               // Fallback: extract from first line (more reliable than before)
               const firstLine = lines[0];
               // Look for username before timestamp separator (handles both — and em dash)
@@ -528,6 +559,15 @@ export class BrowserController {
             // Skip if author is still unknown or empty
             if (!author || author === 'Unknown' || author.length === 0) {
               debug.errors.push('Could not extract author');
+              continue;
+            }
+            
+            // CRITICAL SAFETY CHECK: Skip if author looks like message content fragments
+            // Authors should be short names, not phrases with spaces/emoji/punctuation
+            if (author.includes('😏') || author.includes('💕') || author.includes('😘') || 
+                author.includes('?') || author.includes('!') || 
+                (author.includes(' ') && author.length > 20)) {
+              debug.errors.push('Author looks like message content, skipping');
               continue;
             }
             
