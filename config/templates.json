@@ -115,7 +115,7 @@
     },
     {
       "id": "age_location",
-      "triggers": ["asl", "age", "how old", "where are you from", "where you from", "location", "where u from", "how old are you", "ur age", "are you from", "from where", "your name", "whats your name", "name", "what do you do", "what u do", "do you play games", "what games", "where u at", "country", "city", "state", "who are you", "tell me about you", "describe yourself"],
+      "triggers": ["asl", "age", "how old", "where are you from", "where you from", "location", "where u from", "how old are you", "ur age", "are you from", "from where", "your name", "whats your name", "name", "where u at", "country", "city", "state", "tell me about you", "race", "ethnicity", "sex", "gender", "skin color", "describe yourself physically"],
       "responses": [
         "all that info is on my OF hehe",
         "youll find out everything there :p",
