@@ -464,10 +464,10 @@ class DiscordOFBot {
       // Keep conversation open for potential follow-ups or signup confirmation
       if (messageSent) {
         logger.info(`Conversation open with ${username} - waiting for follow-ups...`);
-        // Don't explicitly wait or end conversation
-        // Let it continue naturally - user may come back to say they signed up
-        // Conversation will only end if they explicitly refuse OF or after long timeout
-        this.inConversationWith = null; // Release lock so we can check other DMs
+        // Keep conversation locked - don't release immediately
+        // This prevents the same message from being processed multiple times
+        // Lock will be released when: user sends new message, or timeout occurs
+        // this.inConversationWith remains set
         // But conversation stays active for future messages
       }
 
