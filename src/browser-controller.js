@@ -122,11 +122,11 @@ export class BrowserController {
       // Click login
       await this.page.click('button[type="submit"]');
 
-      // Wait up to 120 seconds for user to complete captcha/2FA
-      logger.info('Waiting for captcha/2FA (120 seconds)');
+      // Wait for user to complete captcha/2FA - check every 2 seconds until done
+      logger.info('Waiting for captcha/2FA completion...');
       
       let authenticated = false;
-      for (let i = 0; i < 60; i++) {
+      while (!authenticated) {
         await new Promise(r => setTimeout(r, 2000)); // Check every 2 seconds
 
         try {
@@ -143,10 +143,6 @@ export class BrowserController {
         } catch (e) {
           // Continue checking
         }
-      }
-
-      if (!authenticated) {
-        throw new Error('Login timeout - captcha/2FA not completed');
       }
 
       this.isLoggedIn = true;
