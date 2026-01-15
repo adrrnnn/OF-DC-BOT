@@ -425,10 +425,10 @@ class DiscordOFBot {
         this.inConversationWith = null; // Release lock so we can check other DMs
         // But conversation stays active for future messages
       }
-        this.lastPage = 'dm'; // Will return to friends on next poll
-        await this.browser.navigateToFriendsList();
-        this.lastPage = 'friends';
-      }
+
+      this.lastPage = 'dm'; // Will return to friends on next poll
+      await this.browser.navigateToFriendsList();
+      this.lastPage = 'friends';
 
     } catch (error) {
       logger.error(`Error processing DM: ${error.message}`);
