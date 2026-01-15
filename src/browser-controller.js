@@ -171,47 +171,60 @@ export class BrowserController {
    */
   async getBotUsername() {
     try {
+      // FIXED: First try to get from .env which is set during login
+      const envUsername = process.env.BOT_USERNAME;
+      if (envUsername && envUsername !== 'Unknown' && envUsername !== 'You') {
+        logger.debug(`Using BOT_USERNAME from .env: ${envUsername}`);
+        return envUsername;
+      }
+      
+      // Fallback: Try to extract from the page (DOM-based detection)
+      // This is less reliable but works as a backup
       const username = await this.page.evaluate(() => {
-        // Try to get username from user settings or profile
-        // Discord stores username in several places - try them all
+        // Method 1: Look through messages to find our own username
+        const articles = Array.from(document.querySelectorAll('[role="article"]'));
         
-        // Method 1: Look for the current user indicator in DMs
-        const userIndicator = document.querySelector('[aria-label*="Direct Messages"], [class*="currentUser"]');
-        if (userIndicator?.textContent) {
-          const text = userIndicator.textContent.trim();
-          if (text && text.length > 0 && text !== 'Direct Messages') {
-            return text;
+        for (const article of articles) {
+          const text = article.textContent || '';
+          // Look for the first message (usually it's our intro message or a response we sent)
+          // Our messages don't have "You" in the header - they have our actual username
+          const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+          
+          if (lines.length > 0) {
+            // Extract author from first line (format: "username — HH:MM" or just "username")
+            const firstLine = lines[0];
+            if (firstLine.includes('—')) {
+              const author = firstLine.split('—')[0].trim();
+              if (author && author.length > 0 && author !== 'You') {
+                return author;
+              }
+            }
           }
         }
         
-        // Method 2: Check user menu dropdown
-        const userMenu = document.querySelector('[class*="userMenu"], [class*="header"]');
+        // Fallback: try to find from user menu or settings indicator
+        const userMenu = document.querySelector('[class*="userProfile"], [class*="account"]');
         if (userMenu) {
-          const username = userMenu.getAttribute('aria-label');
-          if (username && !username.includes('Discord')) {
-            return username;
-          }
-        }
-        
-        // Method 3: Look for "You" tag in message area (our messages are marked as "You")
-        const ownMessages = Array.from(document.querySelectorAll('[role="article"]'))
-          .filter(el => el.textContent.includes('You'));
-        
-        if (ownMessages.length > 0) {
-          // Extract author from message header
-          const authorSpan = ownMessages[0].querySelector('span[class*="username"], strong');
-          if (authorSpan?.previousElementSibling?.textContent) {
-            return authorSpan.previousElementSibling.textContent.trim();
+          const label = userMenu.getAttribute('aria-label');
+          if (label && !label.includes('Discord')) {
+            return label;
           }
         }
         
         return null;
       });
 
-      return username;
+      if (username && username !== 'Unknown' && username !== 'You') {
+        logger.debug(`Detected bot username from DOM: ${username}`);
+        return username;
+      }
+      
+      // Ultimate fallback
+      logger.warn('Could not detect bot username, using fallback "Bot"');
+      return 'Bot';
     } catch (error) {
-      logger.warn('Could not detect bot username:', error.message);
-      return null;
+      logger.warn('Error getting bot username:', error.message);
+      return process.env.BOT_USERNAME || 'Bot';
     }
   }
 
@@ -385,8 +398,28 @@ export class BrowserController {
         waitUntil: 'domcontentloaded',
       });
       
-      // Wait for messages to be visible
-      await new Promise(r => setTimeout(r, 1500));
+      // Wait for messages to be visible - use a retry loop to ensure articles load
+      logger.debug('Waiting for article elements to load...');
+      let articlesLoaded = false;
+      let waitAttempts = 0;
+      const maxAttempts = 10; // Try for up to 5 seconds (10 * 500ms)
+      
+      while (!articlesLoaded && waitAttempts < maxAttempts) {
+        await new Promise(r => setTimeout(r, 500));
+        
+        const articleCount = await this.page.evaluate(() => {
+          return document.querySelectorAll('[role="article"]').length;
+        });
+        
+        logger.debug(`Article check ${waitAttempts + 1}/${maxAttempts}: found ${articleCount} articles`);
+        
+        if (articleCount > 0) {
+          articlesLoaded = true;
+          logger.debug('Articles loaded successfully');
+        }
+        
+        waitAttempts++;
+      }
       
       // Debug: Check page status
       const pageDebug = await this.page.evaluate(() => {
@@ -400,15 +433,6 @@ export class BrowserController {
         };
       });
       logger.debug(`openDM - Page status: ${JSON.stringify(pageDebug)}`);
-      
-      // Make sure article elements are present
-      try {
-        await this.page.waitForSelector('[role="article"]', { timeout: 5000 }).catch(() => {
-          // It's ok if there are no articles (no messages yet)
-        });
-      } catch (e) {
-        // No messages visible yet, but that's ok
-      }
       
       logger.info('Opened DM', { userId });
       return true;
@@ -463,14 +487,30 @@ export class BrowserController {
             
             if (lines.length === 0) continue;
             
-            // First line usually contains the author name
-            // Format is usually: "username — HH:MM"
-            // or just "username"
-            const firstLine = lines[0];
-            const authorMatch = firstLine.match(/^([^\—\[\d:]+)/);
+            // Extract author from message header
+            // Discord puts the username in a specific format at the start
+            // Try to extract from DOM element first (more reliable)
+            const headerSpan = article.querySelector('[class*="username"], [class*="author"], strong, span[role="presentation"]');
             
-            if (authorMatch) {
-              author = authorMatch[1].trim();
+            if (headerSpan?.textContent) {
+              author = headerSpan.textContent.trim();
+            } else {
+              // Fallback: extract from first line before the timestamp separator
+              const firstLine = lines[0];
+              // Split on em-dash which separates name from time
+              if (firstLine.includes('—')) {
+                author = firstLine.split('—')[0].trim();
+              } else if (firstLine.includes('—')) {
+                author = firstLine.split('—')[0].trim();
+              } else {
+                // No separator, just take everything up to a digit pattern
+                const match = firstLine.match(/^([^\d]+?)(?:\s*\d{1,2}:\d{2})?$/);
+                if (match) {
+                  author = match[1].trim();
+                } else {
+                  author = firstLine.trim();
+                }
+              }
             }
             
             // Find actual message content by skipping metadata
@@ -512,9 +552,12 @@ export class BrowserController {
               content = content.substring(author.length).replace(/^[\s—\[\]]+/, '').trim();
             }
             
+            // Check for OF link in the message content
+            const hasOFLink = /onlyfans|of\s*link|my\s*link|check\s*me\s*out/i.test(content + ' ' + fullText);
+            
             // Only add if we have meaningful content
             if (content && content.length > 2) {
-              msgs.push({ author, content });
+              msgs.push({ author, content, hasOFLink });
               debug.messagesExtracted++;
             }
           } catch (e) {
