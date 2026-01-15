@@ -502,49 +502,76 @@ export class BrowserController {
             
             if (lines.length === 0) continue;
             
-            // Extract author from message header
-            // Discord puts the username in a specific format at the start
-            // Try to extract from DOM element first (more reliable)
-            const headerSpan = article.querySelector('[class*="username"], [class*="author"], strong, span[role="presentation"]');
+            // Extract author from message header - CRITICAL FIX
+            // Discord uses specific DOM structure for usernames
+            const authorElement = article.querySelector('[class*="username"], [class*="author"], span[role="heading"]') ||
+                                 article.querySelector('span[class*="userName"]') ||
+                                 article.querySelector('[class*="headerText"]');
             
-            if (headerSpan?.textContent) {
-              author = headerSpan.textContent.trim();
+            if (authorElement?.textContent) {
+              author = authorElement.textContent.trim();
             } else {
-              // Fallback: extract from first line before the timestamp separator
+              // Fallback: extract from first line (more reliable than before)
               const firstLine = lines[0];
-              // Split on em-dash which separates name from time
-              if (firstLine.includes('—')) {
-                author = firstLine.split('—')[0].trim();
-              } else if (firstLine.includes('—')) {
-                author = firstLine.split('—')[0].trim();
+              // Look for username before timestamp separator
+              const match = firstLine.match(/^([^—]+?)(?:—|—)/);
+              if (match && match[1].trim().length > 0) {
+                author = match[1].trim();
               } else {
-                // No separator, just take everything up to a digit pattern
-                const match = firstLine.match(/^([^\d]+?)(?:\s*\d{1,2}:\d{2})?$/);
-                if (match) {
-                  author = match[1].trim();
-                } else {
-                  author = firstLine.trim();
+                // If no separator, take first meaningful word (skip timestamps)
+                const words = firstLine.split(/[\s—]+/).filter(w => !/^\d{1,2}:\d{2}/.test(w));
+                if (words.length > 0) {
+                  author = words[0];
                 }
               }
             }
             
+            // Skip if author is still unknown or empty
+            if (!author || author === 'Unknown' || author.length === 0) {
+              debug.errors.push('Could not extract author');
+              continue;
+            }
+            
             // Find actual message content by skipping metadata
-            // Look for the actual message text (not timestamps, dates, etc)
+            // CRITICAL FIX: Remove Discord UI button text and React menu items
             for (let i = lines.length - 1; i >= 0; i--) {
-              const line = lines[i];
+              let line = lines[i];
               
-              // Skip timestamps like "15:09", "15:11"
+              // Skip timestamps like "15:09", "15:11", "19:36", "19:37"
               if (/^\d{1,2}:\d{2}/.test(line)) continue;
+              
               // Skip dates in Russian or English
               if (/^\d{1,2}\s+(January|February|March|April|May|June|July|August|September|October|November|December|января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)/i.test(line)) continue;
-              // Skip day of week
-              if (/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|понедельник|вторник|среда|четверг|пятница|суббота|воскресенье)/i.test(line)) continue;
+              
+              // Skip day of week (Russian: понедельник, вторник, etc.)
+              if (/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|понедельник|вторник|среда|четверг|пятница|суббота|воскресенье|[а-я]{9,})/i.test(line)) continue;
+              
               // Skip lines with only emoji or formatting
               if (/^[—\[\]◉○●\d:]+$/.test(line)) continue;
+              
               // Skip lines that look like author info
               if (line === author) continue;
               
-              // Found the actual message
+              // CRITICAL: Remove Discord UI elements - button text, emoji reactions, menus
+              // Pattern: :emoji_name:Текст:emoji_name:Текст... (Discord reaction buttons)
+              line = line.replace(/:[^\s:]+:(?:Нажмите|Click|Add).*?(?=:[^\s:]+:|$)/gi, '');
+              
+              // Remove React menu items: "Изменить", "Переслать", "Удалить", "Edit", "Forward", "Delete"
+              line = line.replace(/\b(Изменить|Переслать|Удалить|Скопировать|Ответить|Edit|Forward|Delete|Copy|Reply|More|Ещё)\b/gi, '');
+              
+              // Remove emoji pattern like :thumbsup:, :thumbsdown:, :100:, etc
+              line = line.replace(/:[a-z0-9_+-]+:/gi, '');
+              
+              // Remove "Нажмите, чтобы отреагировать" (Click to react text)
+              line = line.replace(/Нажмите,?\s*чтобы\s+отреагировать/gi, '');
+              
+              // Remove "Добавить реакцию" (Add reaction)
+              line = line.replace(/Добавить\s+реакцию/gi, '');
+              
+              // Clean up extra whitespace
+              line = line.replace(/\s+/g, ' ').trim();
+              
+              // Found the actual message if there's content left
               if (line.length > 1) {
                 content = line;
                 break;
@@ -554,7 +581,16 @@ export class BrowserController {
             // Fallback: if no content found, use the last non-empty line that's not metadata
             if (!content && lines.length > 1) {
               for (let i = lines.length - 1; i >= 1; i--) {
-                const line = lines[i];
+                let line = lines[i];
+                
+                // Clean UI elements first
+                line = line.replace(/:[^\s:]+:(?:Нажмите|Click|Add).*?(?=:[^\s:]+:|$)/gi, '');
+                line = line.replace(/\b(Изменить|Переслать|Удалить|Скопировать|Ответить|Edit|Forward|Delete|Copy|Reply|More|Ещё)\b/gi, '');
+                line = line.replace(/:[a-z0-9_+-]+:/gi, '');
+                line = line.replace(/Нажмите,?\s*чтобы\s+отреагировать/gi, '');
+                line = line.replace(/Добавить\s+реакцию/gi, '');
+                line = line.replace(/\s+/g, ' ').trim();
+                
                 if (line.length > 2 && line !== author && !/^\d{1,2}:\d{2}/.test(line)) {
                   content = line;
                   break;
@@ -565,6 +601,12 @@ export class BrowserController {
             // Clean up content - remove leading author name if present
             if (content && content.startsWith(author)) {
               content = content.substring(author.length).replace(/^[\s—\[\]]+/, '').trim();
+            }
+            
+            // Double-check: if content is only UI text, skip it
+            if (content && /^(Нажмите|Click|Edit|Forward|Delete|More|Ещё|Добавить|Изменить|Переслать|Удалить|Скопировать|Ответить|Reply|Copy)/.test(content)) {
+              debug.errors.push('Content is only UI text');
+              continue;
             }
             
             // Check for OF link in the message content
