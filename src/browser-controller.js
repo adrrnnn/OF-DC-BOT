@@ -174,59 +174,19 @@ export class BrowserController {
 
   /**
    * Get the bot's own username from the logged-in Discord account
+   * OPTIMIZED: Uses BOT_USERNAME from .env (set in start.bat) - skips expensive DOM queries
    */
   async getBotUsername() {
     try {
-      // FIXED: First try to get from .env which is set during login
+      // Use BOT_USERNAME from .env (set in start.bat by user)
       const envUsername = process.env.BOT_USERNAME;
-      if (envUsername && envUsername !== 'Unknown' && envUsername !== 'You') {
-        logger.debug(`Using BOT_USERNAME from .env: ${envUsername}`);
+      if (envUsername && envUsername !== 'Unknown' && envUsername !== 'You' && envUsername.trim().length > 0) {
+        logger.info(`Bot username: ${envUsername} (from .env)`);
         return envUsername;
       }
       
-      // Fallback: Try to extract from the page (DOM-based detection)
-      // This is less reliable but works as a backup
-      const username = await this.page.evaluate(() => {
-        // Method 1: Look through messages to find our own username
-        const articles = Array.from(document.querySelectorAll('[role="article"]'));
-        
-        for (const article of articles) {
-          const text = article.textContent || '';
-          // Look for the first message (usually it's our intro message or a response we sent)
-          // Our messages don't have "You" in the header - they have our actual username
-          const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-          
-          if (lines.length > 0) {
-            // Extract author from first line (format: "username — HH:MM" or just "username")
-            const firstLine = lines[0];
-            if (firstLine.includes('—')) {
-              const author = firstLine.split('—')[0].trim();
-              if (author && author.length > 0 && author !== 'You') {
-                return author;
-              }
-            }
-          }
-        }
-        
-        // Fallback: try to find from user menu or settings indicator
-        const userMenu = document.querySelector('[class*="userProfile"], [class*="account"]');
-        if (userMenu) {
-          const label = userMenu.getAttribute('aria-label');
-          if (label && !label.includes('Discord')) {
-            return label;
-          }
-        }
-        
-        return null;
-      });
-
-      if (username && username !== 'Unknown' && username !== 'You') {
-        logger.debug(`Detected bot username from DOM: ${username}`);
-        return username;
-      }
-      
-      // Ultimate fallback
-      logger.warn('Could not detect bot username, using fallback "Bot"');
+      // Fallback if .env doesn't have it (rare case)
+      logger.warn('BOT_USERNAME not found in .env, using fallback "Bot"');
       return 'Bot';
     } catch (error) {
       logger.warn('Error getting bot username:', error.message);
