@@ -457,9 +457,6 @@ export class BrowserController {
         }
 
         // Process last N articles
-        // Get bot username from environment (should be passed in or available globally)
-        const botUsername = 'karen_1962.ec_19875';
-        
         for (const article of articles.slice(-limit)) {
           try {
             let author = 'Unknown';
@@ -482,48 +479,48 @@ export class BrowserController {
             
             // Extract author from message header - CRITICAL FIX
             // Discord uses specific DOM structure for usernames
-            // First try to get from direct DOM elements
-            let authorElement = null;
+            const authorElement = article.querySelector('[class*="username"], [class*="author"], span[role="heading"]') ||
+                                 article.querySelector('span[class*="userName"]') ||
+                                 article.querySelector('[class*="headerText"]');
             
-            // Try multiple selector strategies  
-            const selectors = [
-              'h3 > *:first-child',  // Username in h3
-              'span[class*="username"]',
-              '[class*="author"] > span',
-              'img[alt]'  // Avatar with alt text containing username
-            ];
-            
-            for (const selector of selectors) {
-              authorElement = article.querySelector(selector);
-              if (authorElement?.textContent?.trim()) {
-                author = authorElement.textContent.trim();
-                break;
-              }
-            }
-            
-            // If we found an author from DOM, validate it's not too long/complex
-            if (author && author.length > 25) {
-              author = null;  // Too long, probably not a username
-            }
-            
-            if (!author || author.length === 0) {
-              // Fallback: extract from first line
-              // Strategy 1: Look for pattern "username HH:MM" or "username — timestamp"
+            if (authorElement?.textContent) {
+              author = authorElement.textContent.trim();
+            } else {
+              // Fallback: extract from first line (more reliable than before)
               const firstLine = lines[0];
-              const timeMatch = firstLine.match(/^([^\d\[\]:]+?)\s+[\d\[\]]*[\d:]+/);
-              if (timeMatch && timeMatch[1].trim().length >= 2) {
-                author = timeMatch[1].trim();
+              // Look for username before timestamp separator (handles both — and em dash)
+              const match = firstLine.match(/^([^——\d\[\]]+?)(?:—|—|$)/);
+              if (match && match[1].trim().length > 0 && match[1].trim() !== 'четверг' && !/^[а-яё\s]+$/i.test(match[1].trim())) {
+                author = match[1].trim();
               } else {
-                // Strategy 2: Split by common separators and take first substantial word
-                const words = firstLine.split(/[\s—\[\]]+/).filter(w => w.length >= 2);
+                // If no separator, take first meaningful word (skip timestamps and date words)
+                const words = firstLine.split(/[\s—]+/).filter(w => {
+                  // Must be at least 2 chars (to avoid single letters)
+                  if (w.length < 2) return false;
+                  // Skip timestamps (HH:MM format)
+                  if (/^\d{1,2}:\d{2}/.test(w)) return false;
+                  // Skip any pure digits (day of month, year fragments, etc)
+                  if (/^\d+$/.test(w)) return false;
+                  // Skip day of week and date markers (with optional punctuation like comma)
+                  if (/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|понедельник|вторник|среда|четверг|пятница|суббота|воскресенье)[,\.]?$/i.test(w)) return false;
+                  // Skip months in Russian/English (with optional punctuation)
+                  if (/^(January|February|March|April|May|June|July|August|September|October|November|December|января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)[,\.]?$/i.test(w)) return false;
+                  // Skip years
+                  if (/^\d{4}$/.test(w)) return false;
+                  // Skip г. (Russian abbreviation for "year")
+                  if (/^г\.?$/.test(w)) return false;
+                  // Skip в. (Russian abbreviation for "at/in")
+                  if (/^в\.?$/.test(w)) return false;
+                  // Skip brackets with times like [21:05]
+                  if (/^\[\d{1,2}:\d{2}\]$/.test(w)) return false;
+                  // CRITICAL: Skip common English words that might appear in message content
+                  // (its, all, my, the, free, when, etc.)
+                  if (/^(its|all|my|the|free|when|and|or|is|are|be|do|have|has|was|were|am|on|in|at|to|from|that|this|than|as|by|for|up|out|if|so|no|not|just|like|how|what|about|which|who|would|could|should|may|might|can|will|shall|have|has|been|being|be|doing|does|done|said|says|go|goes|make|makes|see|sees|know|knows|want|wants|think|thinks|try|tries|ask|asks|need|needs|feel|feels|find|finds|tell|tells|work|works|call|calls|come|comes|give|gives|find|finds|take|takes|use|uses|look|looks|talk|talks|its|she|he|it|they|we|you|me|him|her|them|us|them|yourself|myself|himself|herself|itself|themselves|ourselves)$/i.test(w)) return false;
+                  
+                  return true;
+                });
                 if (words.length > 0) {
-                  // Skip timestamp patterns like "02:54", "[02:54]"
-                  for (const w of words) {
-                    if (!/^\d{1,2}:\d{2}/.test(w) && !/^\d+$/.test(w)) {
-                      author = w;
-                      break;
-                    }
-                  }
+                  author = words[0];
                 }
               }
             }
@@ -534,25 +531,11 @@ export class BrowserController {
               continue;
             }
             
-            // CRITICAL CHECK #1: Skip if author is the bot itself
-            // This is the PRIMARY defense against re-processing own messages
+            // CRITICAL: Skip messages from the bot itself (karen_1962.ec_19875)
+            // This prevents the bot from re-processing its own messages
+            const botUsername = 'karen_1962.ec_19875';
             if (author === botUsername || author.toLowerCase() === botUsername.toLowerCase()) {
-              debug.errors.push(`Message is from bot (exact match: "${author}"), skipping`);
-              continue;
-            }
-            
-            // CRITICAL CHECK #2: Skip if author looks like message content fragments
-            // Real usernames don't contain exclamation marks, question marks, or emoji
-            if (author.includes('!') || author.includes('?') || author.includes('😏') || 
-                author.includes('💕') || author.includes('😘') || author.includes(':')) {
-              debug.errors.push(`Author contains message markers ("${author}"), skipping`);
-              continue;
-            }
-            
-            // CRITICAL CHECK #3: Skip if author has excessive spaces (likely multi-word content)
-            // Real Discord usernames are typically 1-2 words max
-            if (author.includes(' ') && author.length > 20) {
-              debug.errors.push(`Author contains excessive spaces ("${author}"), skipping`);
+              debug.errors.push('Message is from bot, skipping');
               continue;
             }
             
