@@ -40,6 +40,7 @@ class DiscordOFBot {
     this.dmCheckMinInterval = 30000; // Only re-check a DM every 30 seconds at minimum
     this.lastResponseTime = new Map(); // Track when we last responded to each user for cooldown
     this.responseCooldown = 3500; // Minimum 3.5 seconds between responses to same user
+    this.testAccounts = ['kuangg']; // Test accounts - conversation resets on new greeting
   }
 
   /**
@@ -462,6 +463,30 @@ class DiscordOFBot {
 
       logger.info(`User said: "${cleanMessageText}"`);
 
+      // CRITICAL: Check if OF link was already sent to this user
+      const ofLinkAlreadySent = this.conversationManager.hasOFLinkBeenSent(userId);
+      const isTestAccount = this.testAccounts.includes(username.toLowerCase());
+      
+      if (ofLinkAlreadySent && !isTestAccount) {
+        // Regular user - conversation is DONE, don't respond
+        logger.info(`OF link already sent to ${username} (regular user) - conversation ended, not responding`);
+        this.inConversationWith = null;
+        return;
+      }
+      
+      if (ofLinkAlreadySent && isTestAccount) {
+        // Test account - check if this is a greeting (reset conversation if so)
+        const isGreeting = /^(hey|hi|hello|yo|sup|watsup|what's up|whats up|wassup|hola|howdy|greetings)/i.test(cleanMessageText);
+        if (isGreeting) {
+          // Reset conversation for test account
+          logger.info(`Test account ${username} sent greeting after OF link - resetting conversation`);
+          this.conversationManager.startConversation(userId);
+        } else {
+          // Not a greeting, treat as continuation (test account can continue after OF link)
+          logger.info(`Test account ${username} sent non-greeting after OF link - continuing conversation`);
+        }
+      }
+
       // Mark message as processed BEFORE handling to prevent race conditions
       this.conversationManager.setLastMessageId(userId, cleanMessageText);
       this.lastResponseTime.set(userId, Date.now());
@@ -487,6 +512,17 @@ class DiscordOFBot {
           logger.info(
             `✅ Response sent to ${username} (source: ${response.source}, hasOFLink: ${response.hasOFLink})`
           );
+          
+          // CRITICAL: Mark OF link as sent if this response includes it
+          if (response.hasOFLink) {
+            this.conversationManager.markOFLinkSent(userId);
+            if (!isTestAccount) {
+              logger.info(`🔗 OF link sent to regular user ${username} - conversation will end on next message`);
+            } else {
+              logger.info(`🔗 OF link sent to test account ${username} - conversation can continue on greeting`);
+            }
+          }
+          
           messageSent = true;
         } else {
           logger.warn(`Failed to send response to ${username}`);
