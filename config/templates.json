@@ -35,7 +35,7 @@
     },
     {
       "id": "greeting",
-      "triggers": ["hi", "hey", "hello", "hii", "hiii", "heyy", "heyyy", "yo", "sup", "wassup", "whats up", "what's up", "how u", "hru", "hi there", "hey there", "hello there", "heya"],
+      "triggers": ["hi", "hey", "hello", "hii", "hiii", "heyy", "heyyy", "yo", "sup", "wassup", "whats up", "what's up", "how u", "hru", "hi there", "hey there", "hello there", "heya", "hey baby", "hey there baby", "hello baby"],
       "responses": [
         "hiii 💕",
         "hey there 😊",
