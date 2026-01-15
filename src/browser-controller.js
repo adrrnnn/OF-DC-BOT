@@ -567,12 +567,10 @@ export class BrowserController {
               continue;
             }
             
-            // CRITICAL CHECK #3: Skip if author is suspiciously formatted
-            // Usernames with excessive spaces or weird patterns are likely content fragments
-            if ((author.includes(' ') && author.length > 20) || 
-                /^[a-z,.:!?\s]+$/i.test(author)) {
-              // If it's all lowercase common words/punctuation, it's probably content not a username
-              debug.errors.push(`Author looks malformed ("${author}"), skipping`);
+            // CRITICAL CHECK #3: Skip if author has excessive spaces (likely multi-word content)
+            // Real Discord usernames are typically 1-2 words max
+            if (author.includes(' ') && author.length > 20) {
+              debug.errors.push(`Author contains excessive spaces ("${author}"), skipping`);
               continue;
             }
             
