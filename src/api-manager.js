@@ -24,7 +24,10 @@ export class APIManager {
     if (this.geminiKeys.length === 0) {
       logger.warn('No Gemini API keys found - will use templates only until GPT Nano available');
     } else {
-      logger.info(`Gemini: ${this.geminiKeys.length} key(s)`);
+      logger.info(`✅ Gemini: ${this.geminiKeys.length} key(s) loaded`);
+      this.geminiStats.forEach((stat, i) => {
+        logger.info(`   Key ${i + 1}: Ready`);
+      });
     }
 
     if (this.gptNanoKey) {
@@ -91,7 +94,7 @@ export class APIManager {
     for (let i = 0; i < this.geminiStats.length; i++) {
       const stat = this.geminiStats[i];
       if (!stat.rateLimited && !stat.quotaExhausted) {
-        logger.info(`Rotating Gemini key: ${this.currentGeminiKeyIndex} → ${i}`);
+        logger.info(`🔄 Rotating Gemini key: ${this.currentGeminiKeyIndex} → ${i} (Key ${i + 1})`);
         this.currentGeminiKeyIndex = i;
         return stat.key;
       }
