@@ -108,18 +108,18 @@ Respond naturally in 1-2 short sentences. Keep it casual and friendly, like you'
       return response;
 
     } catch (error) {
-      logger.warn(`AI error (${error.message}) - trying fallback provider...`);
+      logger.warn(`AI error (${error.message.substring(0, 100)}) - attempting OpenAI...`);
       
-      // If we got an error, try the other provider
-      const provider = this.providerFactory.getProvider();
-      if (provider && provider.getName() !== 'Gemini') {
+      // If first attempt failed, force try OpenAI directly
+      if (this.providerFactory.gptNanoProvider && this.providerFactory.gptNanoProvider.isAvailable()) {
         try {
-          logger.info(`Attempting fallback provider: ${provider.getName()}`);
-          const prompt = `You are responding in a Discord DM conversation. Be natural, casual, and conversational - like texting with a friend. The user just said: "${userMessage}". Respond naturally in 1-2 short sentences. Keep it casual and friendly, like you're texting.`;
-          const response = await provider.generateResponse(prompt, systemPrompt);
+          logger.info(`Forcing OpenAI fallback...`);
+          const prompt = `You are a real flirty girl on Discord. Read what they're actually asking and respond to it directly. Keep responses 1-2 short sentences. Use lowercase, casual texting with emojis (hehe, lol, 💕, 😊, 😏, etc). Match their energy and tone. Be playful and flirty but ALWAYS address what they asked. The user just said: "${userMessage}". Respond naturally.`;
+          const response = await this.providerFactory.gptNanoProvider.generateResponse(prompt, systemPrompt);
+          logger.info(`✅ OpenAI succeeded after Gemini failed`);
           return response;
-        } catch (fallbackError) {
-          logger.warn(`Fallback provider also failed: ${fallbackError.message}`);
+        } catch (openaiError) {
+          logger.warn(`OpenAI also failed: ${openaiError.message.substring(0, 100)}`);
         }
       }
       
