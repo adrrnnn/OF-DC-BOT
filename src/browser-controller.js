@@ -574,6 +574,9 @@ export class BrowserController {
               // Skip lines that look like author info
               if (line === author) continue;
               
+              // Skip bot response markers and OF content indicators
+              if (/^(its free|lmk when|lmk|sub|subscribe|onlyfans|only fans|https?:\/\/|link|pooks|hehe|cutie|baby|babe)/i.test(line)) continue;
+              
               // CRITICAL: Remove Discord UI elements - button text, emoji reactions, menus
               // Pattern: :emoji_name:Текст:emoji_name:Текст... (Discord reaction buttons)
               line = line.replace(/:[^\s:]+:(?:Нажмите|Click|Add).*?(?=:[^\s:]+:|$)/gi, '');
