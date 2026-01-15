@@ -325,14 +325,23 @@ class DiscordOFBot {
         return false;
       }
 
-      // Check if we already replied to this exact message
-      if (this.conversationManager.getLastMessageId(userId) === latestUserMessage.content) {
+      // Clean message text for consistent deduplication comparison
+      let cleanContent = latestUserMessage.content;
+      cleanContent = cleanContent.replace(/^\[\d{1,2}:\d{2}\]\s*/, '');
+      cleanContent = cleanContent.replace(/^\d{1,2}:\d{2}\s*/, '');
+      cleanContent = cleanContent.replace(/.*?—\s*/, '');
+      cleanContent = cleanContent.replace(/^(понедельник|вторник|среда|четверг|пятница|суббота|воскресенье)[,\.]?\s+\d{1,2}\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)[,\.]?\s+\d{4}\s+г\.\s+в\s+\d{1,2}:\d{2}\s*/, '');
+      cleanContent = cleanContent.replace(/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)[,\.]?\s+\d{1,2}\s+(January|February|March|April|May|June|July|August|September|October|November|December)[,\.]?\s+\d{4}\s+at\s+\d{1,2}:\d{2}\s*/, '');
+      cleanContent = cleanContent.trim();
+
+      // Check if we already replied to this exact message (using cleaned content)
+      if (this.conversationManager.getLastMessageId(userId) === cleanContent) {
         // Already replied to this message
         return false;
       }
 
       // New message found!
-      logger.info(`New message found from ${username}: "${latestUserMessage.content}"`);
+      logger.info(`New message found from ${username}: "${cleanContent}"`);
       return true;
 
     } catch (error) {
