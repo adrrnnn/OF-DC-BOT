@@ -115,17 +115,22 @@ Respond naturally in 1-2 short sentences. Keep it casual and friendly, like you'
   }
 
   /**
-   * Fallback responses (no API needed)
+   * Fallback responses (no API needed) - should match template style
    */
   getFallbackResponse() {
     const fallbacks = [
-      'that sounds interesting',
-      'oh really? tell me more',
-      'haha youre funny',
-      'hmm maybe',
-      'thats cool',
-      'lol what do you mean',
-      'youre sweet'
+      'hiii 💕',
+      'hey there 😊',
+      'whats up',
+      'hiiii',
+      'heyyy cutie',
+      'yo 😏',
+      'heyy whatchu up to',
+      'tell me more hehe',
+      'nice tell me about it',
+      'thats cool tell me more',
+      'interesting hehe',
+      'ooh tell me more 😊'
     ];
     return fallbacks[Math.floor(Math.random() * fallbacks.length)];
   }

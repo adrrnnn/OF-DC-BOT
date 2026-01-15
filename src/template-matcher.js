@@ -162,8 +162,8 @@ export class TemplateMatcher {
       for (const trigger of template.triggers) {
         const triggerLower = trigger.toLowerCase();
         
-        // Word boundary match (better than substring)
-        const wordBoundaryPattern = `\\b${triggerLower}\\b`;
+        // Word boundary match (ANY word in message that matches trigger)
+        const wordBoundaryPattern = `\\b${triggerLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`;
         if (new RegExp(wordBoundaryPattern).test(msg) && triggerLower.length > bestTriggerLength) {
           bestTemplate = { template, trigger };
           bestTriggerLength = triggerLower.length;
