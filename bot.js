@@ -460,13 +460,6 @@ class DiscordOFBot {
         return; // Don't clear inConversationWith yet - we're still waiting
       }
 
-      // Check cooldown - don't respond more than once every 3.5 seconds
-      const lastReplyTime = this.lastResponseTime.get(userId);
-      if (lastReplyTime && Date.now() - lastReplyTime < this.responseCooldown) {
-        logger.info(`Cooldown active for ${username} (${Math.round(this.responseCooldown - (Date.now() - lastReplyTime))}ms remaining)`);
-        return;
-      }
-
       logger.info(`User said: "${cleanMessageText}"`);
 
       // Mark message as processed BEFORE handling to prevent race conditions
