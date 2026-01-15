@@ -49,8 +49,14 @@ export class MessageHandler {
       let source;
       let shouldSendLink = false;
 
-      // PRIORITY 1: Try template matching FIRST (word-by-word triggers)
-      const match = this.templateMatcher.findMatch(userMessage);
+      // Check if message is about games/hobbies/general topics (should use AI)
+      const isGeneralTopic = this.isGeneralConversationTopic(userMessage);
+      
+      // PRIORITY 1: Try template matching FIRST (but skip for general topics like games/hobbies)
+      let match;
+      if (!isGeneralTopic) {
+        match = this.templateMatcher.findMatch(userMessage);
+      }
       
       if (match && match.confidence >= 0.5) {
         // Template found - use it
@@ -62,9 +68,13 @@ export class MessageHandler {
           shouldSendLink = true;
         }
       } 
-      // PRIORITY 2: Use AI (only if template doesn't match)
+      // PRIORITY 2: Use AI (if template doesn't match or general topic detected)
       else {
-        logger.info('No template match found, switching to Gemini AI...');
+        if (isGeneralTopic) {
+          logger.info('General conversation topic detected (games/hobbies) - switching to AI');
+        } else {
+          logger.info('No template match found, switching to Gemini AI...');
+        }
         response = await this.aiHandler.generateResponse(
           userMessage,
           this.templateMatcher.getSystemPrompt()
@@ -141,6 +151,31 @@ export class MessageHandler {
       'subscribe', 'membership', 'see it all'
     ];
     return ofKeywords.some(kw => lower.includes(kw));
+  }
+
+  /**
+   * Detect if message is about games, hobbies, or general conversation topics
+   * These should use AI instead of templates for more natural responses
+   */
+  isGeneralConversationTopic(message) {
+    if (!message) return false;
+    const lower = message.toLowerCase();
+    
+    // Games, hobbies, interests, preferences
+    const generalTopics = [
+      'game', 'play', 'hobby', 'hobbies', 'interest', 'interests',
+      'music', 'show', 'movie', 'movies', 'series', 'series', 'netflix',
+      'book', 'books', 'read', 'reading',
+      'sport', 'sports', 'gym', 'fitness', 'exercise',
+      'travel', 'vacation', 'trip', 'country', 'city',
+      'food', 'eat', 'cooking', 'cook', 'restaurant',
+      'anime', 'manga', 'cartoon', 'cartoon',
+      'what do you', 'do you like', 'what do u', 'do u like',
+      'whats your', 'what\'s your', 'tell me about', 'curious',
+      'favorite', 'favourite', 'prefer', 'preference'
+    ];
+    
+    return generalTopics.some(topic => lower.includes(topic));
   }
 }
 
