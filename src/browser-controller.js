@@ -55,18 +55,6 @@ export class BrowserController {
         Object.defineProperty(navigator, 'webdriver', { get: () => false });
       });
 
-      // Block unnecessary resources to speed up page loads
-      await this.page.setRequestInterception(true);
-      this.page.on('request', (request) => {
-        const resourceType = request.resourceType();
-        // Block images, CSS, fonts, media - keep JS and documents
-        if (['image', 'stylesheet', 'font', 'media'].includes(resourceType)) {
-          request.abort();
-        } else {
-          request.continue();
-        }
-      });
-
       logger.info('Browser launched');
       return true;
     } catch (error) {
