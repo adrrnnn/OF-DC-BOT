@@ -186,5 +186,3 @@ export class APIManager {
     };
   }
 }
-
-export { APIManager };
