@@ -457,29 +457,19 @@ export class BrowserController {
         }
 
         // Process last N articles
+        // Get bot username from environment (should be passed in or available globally)
+        const botUsername = 'karen_1962.ec_19875';
+        
         for (const article of articles.slice(-limit)) {
           try {
             let author = 'Unknown';
             let content = '';
-            
-            // CRITICAL: Check if this message is from the current user (bot)
-            // Discord uses data attributes and specific structures for own messages
-            const isOwnMessage = article.getAttribute('data-author-id') === 'self' ||
-                                article.classList.contains('cozy_f5r6ih') ||
-                                article.querySelector('[class*="mentioned"]') === null && 
-                                article.querySelector('img[alt*="karen"]') !== null;
             
             // Get all text from the article
             const fullText = article.textContent?.trim() || '';
             
             if (!fullText || fullText.length < 3) {
               debug.errors.push('Empty or too short message');
-              continue;
-            }
-            
-            // Skip if this is our own message
-            if (isOwnMessage) {
-              debug.errors.push('Message is from bot (DOM indicator), skipping');
               continue;
             }
             
@@ -495,7 +485,7 @@ export class BrowserController {
             // First try to get from direct DOM elements
             let authorElement = null;
             
-            // Try multiple selector strategies
+            // Try multiple selector strategies  
             const selectors = [
               'h3 > *:first-child',  // Username in h3
               'span[class*="username"]',
@@ -562,20 +552,27 @@ export class BrowserController {
               continue;
             }
             
-            // CRITICAL SAFETY CHECK: Skip if author looks like message content fragments
-            // Authors should be short names, not phrases with spaces/emoji/punctuation
-            if (author.includes('😏') || author.includes('💕') || author.includes('😘') || 
-                author.includes('?') || author.includes('!') || 
-                (author.includes(' ') && author.length > 20)) {
-              debug.errors.push('Author looks like message content, skipping');
+            // CRITICAL CHECK #1: Skip if author is the bot itself
+            // This is the PRIMARY defense against re-processing own messages
+            if (author === botUsername || author.toLowerCase() === botUsername.toLowerCase()) {
+              debug.errors.push(`Message is from bot (exact match: "${author}"), skipping`);
               continue;
             }
             
-            // CRITICAL: Skip messages from the bot itself (karen_1962.ec_19875)
-            // This prevents the bot from re-processing its own messages
-            const botUsername = 'karen_1962.ec_19875';
-            if (author === botUsername || author.toLowerCase() === botUsername.toLowerCase()) {
-              debug.errors.push('Message is from bot, skipping');
+            // CRITICAL CHECK #2: Skip if author looks like message content fragments
+            // Real usernames don't contain exclamation marks, question marks, or emoji
+            if (author.includes('!') || author.includes('?') || author.includes('😏') || 
+                author.includes('💕') || author.includes('😘') || author.includes(':')) {
+              debug.errors.push(`Author contains message markers ("${author}"), skipping`);
+              continue;
+            }
+            
+            // CRITICAL CHECK #3: Skip if author is suspiciously formatted
+            // Usernames with excessive spaces or weird patterns are likely content fragments
+            if ((author.includes(' ') && author.length > 20) || 
+                /^[a-z,.:!?\s]+$/i.test(author)) {
+              // If it's all lowercase common words/punctuation, it's probably content not a username
+              debug.errors.push(`Author looks malformed ("${author}"), skipping`);
               continue;
             }
             
