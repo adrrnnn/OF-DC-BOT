@@ -1,16 +1,16 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { APIManager } = require('./api-manager');
-const { AIProviderFactory } = require('./ai-provider');
-const logger = require('./logger');
-const fs = require('fs');
-const path = require('path');
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { APIManager } from './api-manager.js';
+import { AIProviderFactory } from './ai-provider.js';
+import { logger } from './logger.js';
+import fs from 'fs';
+import path from 'path';
 
 /**
  * AI Handler - Multi-provider support (Gemini + GPT Nano)
  * Strategy: Only called when template/intent matching fails
  * Uses AIProviderFactory for automatic provider selection and fallback
  */
-class AIHandler {
+export class AIHandler {
   constructor() {
     this.apiManager = new APIManager();
     
@@ -39,7 +39,6 @@ class AIHandler {
    */
   loadTrainingExamples() {
     const paths = [
-      path.join(process.cwd(), 'Bot', 'config', 'training-data.json'),
       path.join(process.cwd(), 'config', 'training-data.json'),
       path.join(process.cwd(), 'training-data.json')
     ];
@@ -138,5 +137,3 @@ Respond naturally in 1-2 short sentences. Keep it casual and friendly, like you'
     return this.providerFactory.getStatus();
   }
 }
-
-module.exports = { AIHandler };

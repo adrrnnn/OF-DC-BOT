@@ -1,9 +1,11 @@
-const logger = require('./logger');
+import { logger } from './logger.js';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { default as OpenAI } from 'openai';
 
 /**
  * Base AI Provider Interface
  */
-class AIProvider {
+export class AIProvider {
   constructor(name) {
     this.name = name;
   }
@@ -24,11 +26,10 @@ class AIProvider {
 /**
  * Gemini Provider (Google Generative AI)
  */
-class GeminiProvider extends AIProvider {
+export class GeminiProvider extends AIProvider {
   constructor(apiManager) {
     super('Gemini');
     this.apiManager = apiManager;
-    this.GoogleGenerativeAI = require('@google/generative-ai').GoogleGenerativeAI;
   }
 
   async generateResponse(prompt, systemPrompt) {
@@ -38,7 +39,7 @@ class GeminiProvider extends AIProvider {
         throw new Error('No available Gemini keys');
       }
 
-      const genAI = new this.GoogleGenerativeAI(keyData.key);
+      const genAI = new GoogleGenerativeAI(keyData.key);
       const model = genAI.getGenerativeModel({ 
         model: 'gemini-2.5-flash',
         systemInstruction: systemPrompt
@@ -81,24 +82,20 @@ class GeminiProvider extends AIProvider {
 /**
  * GPT Nano Provider (OpenAI)
  */
-class GPTNanoProvider extends AIProvider {
+export class GPTNanoProvider extends AIProvider {
   constructor(apiKey) {
     super('GPT Nano');
     this.apiKey = apiKey;
-    this.OpenAI = require('openai').default;
+    this.client = apiKey ? new OpenAI({ apiKey }) : null;
   }
 
   async generateResponse(prompt, systemPrompt) {
     try {
-      if (!this.apiKey) {
+      if (!this.apiKey || !this.client) {
         throw new Error('GPT Nano API key not configured');
       }
 
-      const client = new this.OpenAI({
-        apiKey: this.apiKey
-      });
-
-      const response = await client.chat.completions.create({
+      const response = await this.client.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
@@ -142,7 +139,7 @@ class GPTNanoProvider extends AIProvider {
 /**
  * AI Provider Factory
  */
-class AIProviderFactory {
+export class AIProviderFactory {
   constructor(apiManager, gptNanoKey) {
     this.apiManager = apiManager;
     this.gptNanoKey = gptNanoKey;
@@ -203,93 +200,5 @@ class AIProviderFactory {
         configured: !!this.gptNanoKey
       }
     };
-  }
-}
-
-module.exports = {
-  AIProvider,
-  GeminiProvider,
-  GPTNanoProvider,
-  AIProviderFactory
-};
-
-/**
- * GPT Nano Provider (OpenAI)
- */
-export class GPTNanoProvider {
-  constructor(apiKey) {
-    this.apiKey = apiKey;
-    this.name = 'GPT Nano';
-    this.model = 'gpt-4o-mini';
-    this.baseURL = 'https://api.openai.com/v1';
-  }
-
-  async generateResponse(userMessage, systemPrompt, conversationContext) {
-    try {
-      const response = await fetch(`${this.baseURL}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: this.model,
-          messages: [
-            {
-              role: 'system',
-              content: `You are responding in a Discord DM conversation. Be natural, casual, and conversational - like texting with a friend.
-
-${conversationContext}
-
-${systemPrompt}
-
-Respond naturally in 1-2 short sentences. Keep it casual and friendly, like you're texting.`
-            },
-            {
-              role: 'user',
-              content: userMessage
-            }
-          ],
-          temperature: 0.7,
-          max_tokens: 50
-        })
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error?.message || 'OpenAI API error');
-      }
-
-      const data = await response.json();
-      let text = data.choices[0].message.content.trim();
-
-      // Clean response
-      text = text
-        .replace(/^(Yuki:|Assistant:|Bot:|You:|Me:)\s*/i, '')
-        .replace(/^["']|["']$/g, '')
-        .replace(/^\*\*|^\*\*|^__|^__/g, '')  // Remove markdown emphasis
-        .trim();
-
-      return text;
-    } catch (error) {
-      throw error;
-    }
-  }
-}
-
-/**
- * Provider Factory
- */
-export class AIProviderFactory {
-  static createProvider(type, apiKey) {
-    switch (type.toUpperCase()) {
-      case 'GEMINI':
-        return new GeminiProvider(apiKey);
-      case 'GPT_NANO':
-      case 'OPENAI':
-        return new GPTNanoProvider(apiKey);
-      default:
-        throw new Error(`Unknown AI provider: ${type}`);
-    }
   }
 }

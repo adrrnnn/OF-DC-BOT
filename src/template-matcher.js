@@ -41,7 +41,6 @@ export class TemplateMatcher {
   loadTrainingData() {
     // Try multiple possible paths
     const paths = [
-      path.join(process.cwd(), 'Bot', 'config', 'training-data.json'),
       path.join(process.cwd(), 'config', 'training-data.json'),
       path.join(process.cwd(), 'training-data.json')
     ];
