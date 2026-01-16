@@ -42,6 +42,7 @@ class DiscordOFBot {
     this.responseCooldown = 3500; // Minimum 3.5 seconds between responses to same user
     this.testAccounts = ['kuangg']; // Test accounts - conversation resets on new greeting
     this.responsePending = {}; // Track which users have responses being sent
+    this.closedConversations = new Set(); // Users with OF link sent - STOP responding
   }
 
   /**
@@ -366,6 +367,12 @@ class DiscordOFBot {
     try {
       let { userId, username } = dm;
 
+      // STOP PROCESSING: If OF link already sent to this user, skip
+      if (this.closedConversations.has(userId)) {
+        logger.debug(`Skipping ${userId} - OF link already sent, conversation closed`);
+        return;
+      }
+
       // If username missing (happens when continuing conversation), extract from latest message
       if (!username && userId) {
         const messages = await this.browser.getMessages();
@@ -545,8 +552,9 @@ class DiscordOFBot {
           // CRITICAL: Mark OF link as sent if this response includes it
           if (response.hasOFLink) {
             this.conversationManager.markOFLinkSent(userId);
+            this.closedConversations.add(userId); // CHEAP FIX: Stop processing this user entirely
             if (!isTestAccount) {
-              logger.info(`🔗 OF link sent to regular user ${extractedUsername} - conversation will end on next message`);
+              logger.info(`🔗 OF link sent to regular user ${extractedUsername} - conversation closed`);
             } else {
               logger.info(`🔗 OF link sent to test account ${extractedUsername} - conversation can continue on greeting`);
             }
