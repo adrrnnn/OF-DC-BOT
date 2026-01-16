@@ -433,6 +433,35 @@ export class BrowserController {
   }
 
   /**
+   * Get messages with retry logic for reliable extraction on fresh DM opens
+   * CRITICAL: Retries up to 10 times if extraction fails, to ensure startup unread messages are captured
+   */
+  async getMessagesWithRetry(limit = 1, maxRetries = 10) {
+    let lastResult = [];
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const messages = await this.getMessages(limit);
+      
+      if (messages.length > 0) {
+        // Success! Return immediately
+        logger.debug(`[Attempt ${attempt}/${maxRetries}] Extraction succeeded, found ${messages.length} message(s)`);
+        return messages;
+      }
+      
+      // Extraction failed (0 messages), retry after delay
+      if (attempt < maxRetries) {
+        const delayMs = 300 + (attempt * 50); // 350ms, 400ms, 450ms, etc.
+        logger.debug(`[Attempt ${attempt}/${maxRetries}] Extraction failed, retrying in ${delayMs}ms...`);
+        await new Promise(r => setTimeout(r, delayMs));
+      }
+    }
+    
+    // All retries exhausted
+    logger.warn(`[Extraction] Failed after ${maxRetries} attempts, returning empty`);
+    return lastResult;
+  }
+
+  /**
    * Get messages from current DM
    */
   async getMessages(limit = 1) {
@@ -543,10 +572,11 @@ export class BrowserController {
               }
             }
             
-            // Skip if author is still unknown or empty
+            // RELAXED: If author extraction failed, allow a generic fallback instead of skipping
+            // This prevents valid messages from being discarded just because author wasn't parsed
             if (!author || author === 'Unknown' || author.length === 0) {
-              debug.errors.push('Could not extract author');
-              continue;
+              logger.debug(`Author extraction failed, using fallback 'dm_user'`);
+              author = 'dm_user'; // Fallback author name for first-message extraction
             }
             
             // CRITICAL: Validate author is not a date/timestamp/day-of-week

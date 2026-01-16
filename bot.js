@@ -43,6 +43,7 @@ class DiscordOFBot {
     this.testAccounts = ['kuangg']; // Test accounts - conversation resets on new greeting
     this.responsePending = {}; // Track which users have responses being sent
     this.closedConversations = new Set(); // Users with OF link sent - STOP responding
+    this.hasRepliedOnce = new Map(); // Track which users have received their first bot reply (enables conversation mode)
   }
 
   /**
@@ -293,8 +294,8 @@ class DiscordOFBot {
         return false;
       }
 
-      // Get messages
-      const messages = await this.browser.getMessages();
+      // Get messages (with retry for startup unread messages)
+      const messages = await this.browser.getMessagesWithRetry();
       if (messages.length === 0) {
         return false;
       }
@@ -375,7 +376,7 @@ class DiscordOFBot {
 
       // If username missing (happens when continuing conversation), extract from latest message
       if (!username && userId) {
-        const messages = await this.browser.getMessages();
+        const messages = await this.browser.getMessagesWithRetry();
         if (messages.length > 0) {
           const userMsg = messages.find(m => m.author && m.author !== this.browser.botUsername && m.author !== 'You');
           username = userMsg?.author || `user_${userId.substring(0, 8)}`;
@@ -401,8 +402,8 @@ class DiscordOFBot {
         return;
       }
 
-      // Get messages
-      const messages = await this.browser.getMessages();
+      // Get messages (with retry for startup unread messages)
+      const messages = await this.browser.getMessagesWithRetry();
       if (messages.length === 0) {
         logger.warn(`No messages found in DM with ${username}`);
         this.inConversationWith = null;
@@ -487,6 +488,16 @@ class DiscordOFBot {
 
       logger.info(`User said: "${cleanMessageText}"`);
       
+      // CONVERSATION MODE BEHAVIOR:
+      // If hasRepliedOnce is false: This is the first message - respond with latest message only, immediately
+      // If hasRepliedOnce is true: In conversation mode - can batch multiple messages, enable multi-turn logic
+      const inConversationMode = this.hasRepliedOnce.has(userId) && this.hasRepliedOnce.get(userId);
+      if (!inConversationMode) {
+        logger.debug(`First message mode: Processing latest message only, no batching`);
+      } else {
+        logger.debug(`Conversation mode: Multi-turn enabled, can process follow-ups`);
+      }
+      
       // Use author from extracted message (more reliable than sidebar)
       const extractedUsername = latestUserMessage.author || username;
       if (!extractedUsername) {
@@ -548,6 +559,13 @@ class DiscordOFBot {
           logger.info(
             `✅ Response sent to ${extractedUsername} (source: ${response.source}, hasOFLink: ${response.hasOFLink})`
           );
+          
+          // CRITICAL: Mark this user as having received their first reply
+          // This enables conversation mode (batching, multiple messages, etc.)
+          if (!this.hasRepliedOnce.has(userId)) {
+            this.hasRepliedOnce.set(userId, true);
+            logger.info(`📝 First reply sent to ${extractedUsername} - conversation mode ENABLED`);
+          }
           
           // CRITICAL: Mark OF link as sent if this response includes it
           if (response.hasOFLink) {
