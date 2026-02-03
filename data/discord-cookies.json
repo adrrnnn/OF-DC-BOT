@@ -1,20 +1,5 @@
 [
   {
-    "name": "_cfuvid",
-    "value": "pd5z5_ogUItqy5kCsJprBf1xJOrYsE6pUR8fhUl6my0-1770157439.1778178-1.0.1.1-PctydJqIARele7bkTpxuQZNE7Ib_.bI5duZQ0zNwmBA",
-    "domain": ".discord.com",
-    "path": "/",
-    "expires": -1,
-    "size": 121,
-    "httpOnly": true,
-    "secure": true,
-    "session": true,
-    "sameSite": "None",
-    "sameParty": false,
-    "sourceScheme": "Secure",
-    "sourcePort": 443
-  },
-  {
     "name": "locale",
     "value": "ru",
     "domain": "discord.com",
@@ -29,11 +14,26 @@
     "sourcePort": 443
   },
   {
+    "name": "_cfuvid",
+    "value": "jPKOOU1voRZLc9KZ.2s.yHTY_8qNHupt3terHGzRHR0-1770158880.686793-1.0.1.1-JvSNrN_xPM.CEWWRjFVytRiz0Nl6GEmveoJ0YoqzZJo",
+    "domain": ".discord.com",
+    "path": "/",
+    "expires": -1,
+    "size": 120,
+    "httpOnly": true,
+    "secure": true,
+    "session": true,
+    "sameSite": "None",
+    "sameParty": false,
+    "sourceScheme": "Secure",
+    "sourcePort": 443
+  },
+  {
     "name": "__sdcfduid",
-    "value": "011c6bc1014f11f1a0be6daa81d0bd2dab71e32d64cc2bdf4c1290feadf311e1334507a7cb0dbf354e11b88b554ead81",
+    "value": "62e8b541015211f1a8478192948bd77027790e047f3d3aed1bd4ca06340a80f6ce96cce37f1b5f10c9d95f17fb650002",
     "domain": "discord.com",
     "path": "/",
-    "expires": 1804717427.787673,
+    "expires": 1804718880.330036,
     "size": 106,
     "httpOnly": true,
     "secure": true,
@@ -45,10 +45,10 @@
   },
   {
     "name": "__dcfduid",
-    "value": "011c6bc0014f11f1a0be6daa81d0bd2d",
+    "value": "62e8b540015211f1a8478192948bd770",
     "domain": "discord.com",
     "path": "/",
-    "expires": 1804717427.787529,
+    "expires": 1804718880.329901,
     "size": 41,
     "httpOnly": true,
     "secure": true,

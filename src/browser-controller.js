@@ -536,7 +536,10 @@ export class BrowserController {
               content = [...new Set(contentLines)].join(' ').trim();
             }
             
-            content = content.replace(/^[a-zA-Z0-9_\.]+\s+/, '').trim();
+            // Only strip username if content starts with the author's name
+            if (author && content.toLowerCase().startsWith(author.toLowerCase())) {
+              content = content.replace(new RegExp(`^${author}\\s+`, 'i'), '').trim();
+            }
             
             // Only add if there's actual content (message text)
             // Author validation happens in processDM

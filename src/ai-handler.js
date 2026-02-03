@@ -84,12 +84,15 @@ export class AIHandler {
       // Build natural prompt using training context
       const conversationContext = this.buildConversationContext();
       
-      const prompt = `${conversationContext}
-${systemPrompt}
+      const prompt = `${systemPrompt}
 
-The user just said: "${userMessage}"
+${conversationContext}
 
-Respond naturally in 1-2 short sentences.`;
+--- THE MESSAGE ---
+User said: "${userMessage}"
+
+--- YOUR RESPONSE ---
+Reply naturally in 1-2 short sentences. Reference what they said specifically.`;
 
       const provider = this.providerFactory.getProvider();
       
@@ -101,7 +104,14 @@ Respond naturally in 1-2 short sentences.`;
       logger.info(`Making AI request using ${provider.getName()}`);
       
       // Use the provider to generate response
-      const response = await provider.generateResponse(prompt, systemPrompt);
+      let response = await provider.generateResponse(prompt, systemPrompt);
+      
+      // Validate response quality - if it's bad, use fallback
+      if (!this.isGoodResponse(response, userMessage)) {
+        logger.debug(`AI response was too generic/dry, using fallback instead`);
+        response = this.getContextualFallbackResponse(userMessage);
+      }
+      
       return response;
 
     } catch (error) {
@@ -113,9 +123,9 @@ Respond naturally in 1-2 short sentences.`;
           logger.info(`Forcing OpenAI fallback...`);
           const prompt = `${systemPrompt}
 
-The user just said: "${userMessage}"
+User said: "${userMessage}"
 
-Respond naturally in 1-2 short sentences.`;
+Reply naturally in 1-2 short sentences.`;
           const response = await this.providerFactory.gptNanoProvider.generateResponse(prompt, systemPrompt);
           logger.info(`✅ OpenAI succeeded after Gemini failed`);
           return response;
@@ -126,6 +136,43 @@ Respond naturally in 1-2 short sentences.`;
       
       return this.getContextualFallbackResponse(userMessage);
     }
+  }
+
+  /**
+   * Validate if AI response is good enough (not too dry/generic)
+   */
+  isGoodResponse(response, userMessage) {
+    if (!response || response.length < 5) {
+      return false;
+    }
+
+    const lower = response.toLowerCase();
+    const userLower = userMessage.toLowerCase();
+
+    // Flag: Too many question marks (asking back)
+    if ((lower.match(/\?/g) || []).length > 1) {
+      return false;
+    }
+
+    // Flag: Response is just "ok" or "sure" or "yeah" (too minimal)
+    if (/^(ok|sure|yeah|yep|nope|nah)$/i.test(response)) {
+      return false;
+    }
+
+    // Flag: Generic responses (too dry)
+    const genericPhrases = ['sounds good', 'that sounds', 'that is', 'that\'s', 'nice', 'okay', 'i see', 'interesting'];
+    if (genericPhrases.some(phrase => lower.includes(phrase) && lower.length < 30)) {
+      return false;
+    }
+
+    // Flag: Just repeating user's words back without adding anything
+    const words = userLower.split(/\s+/).filter(w => w.length > 3);
+    const repetitionCount = words.filter(w => lower.includes(w)).length;
+    if (repetitionCount > words.length * 0.6 && lower.length < 25) {
+      return false;
+    }
+
+    return true;
   }
 
   /**

@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { logger } from './logger.js';
 
 /**
  * Template Matcher - Matches user messages using training data and templates
@@ -121,44 +122,88 @@ export class TemplateMatcher {
   /**
    * Find matching template based on user message (legacy template system)
    * Returns: { templateId, response, sendLink, followUp } or null
+   * 
+   * PRIORITY ORDER:
+   * 1. EXACT phrase matches (highest priority, especially redirects)
+   * 2. REDIRECT templates with sendLink (pics, video call, meetup, sexual content)
+   * 3. Training data matches
+   * 4. Regular templates
    */
   findMatch(userMessage) {
     const msg = userMessage.toLowerCase().trim();
 
-    // PRIORITY 1: Check exact phrase template matches FIRST (these are critical redirects)
+    // PRIORITY 1: Check EXACT phrase matches FIRST (these are critical redirects)
     for (const template of this.templates) {
-      for (const trigger of template.triggers) {
-        const triggerLower = trigger.toLowerCase();
-        
-        // Exact phrase match - takes highest priority
-        if (msg === triggerLower) {
-          const response = template.responses[
-            Math.floor(Math.random() * template.responses.length)
-          ];
-
-          return {
-            templateId: template.id,
-            response: response,
-            sendLink: template.sendLink || false,
-            followUp: template.followUp || false,
-            confidence: 1.0,
-            source: 'template_exact'
-          };
+      // Prioritize redirect templates in exact matching
+      if (template.sendLink) {
+        for (const trigger of template.triggers) {
+          const triggerLower = trigger.toLowerCase();
+          if (msg === triggerLower) {
+            const response = template.responses[
+              Math.floor(Math.random() * template.responses.length)
+            ];
+            return {
+              templateId: template.id,
+              response: response,
+              sendLink: template.sendLink || false,
+              followUp: template.followUp || false,
+              confidence: 1.0,
+              source: 'template_exact'
+            };
+          }
         }
       }
     }
 
-    // PRIORITY 2: Try training data
+    // PRIORITY 2: Check REDIRECT TEMPLATES FIRST (sendLink: true) with substring/word boundary matches
+    // This ensures video call, meetup, pics requests trigger BEFORE "interested" template
+    let bestRedirectTemplate = null;
+    let bestRedirectTriggerLength = 0;
+
+    for (const template of this.templates) {
+      if (!template.sendLink) continue; // Skip non-redirects
+
+      for (const trigger of template.triggers) {
+        const triggerLower = trigger.toLowerCase();
+        
+        // Word boundary match
+        const wordBoundaryPattern = `\\b${triggerLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`;
+        if (new RegExp(wordBoundaryPattern).test(msg) && triggerLower.length > bestRedirectTriggerLength) {
+          bestRedirectTemplate = { template, trigger };
+          bestRedirectTriggerLength = triggerLower.length;
+        }
+      }
+    }
+
+    if (bestRedirectTemplate) {
+      const response = bestRedirectTemplate.template.responses[
+        Math.floor(Math.random() * bestRedirectTemplate.template.responses.length)
+      ];
+
+      logger.debug(`[Template Match] Redirect template matched: ${bestRedirectTemplate.template.id}`);
+      return {
+        templateId: bestRedirectTemplate.template.id,
+        response: response,
+        sendLink: bestRedirectTemplate.template.sendLink || false,
+        followUp: bestRedirectTemplate.template.followUp || false,
+        confidence: 0.85,
+        source: 'template_redirect'
+      };
+    }
+
+    // PRIORITY 3: Try training data
     const trainingMatch = this.findTrainingDataMatch(userMessage);
     if (trainingMatch && trainingMatch.confidence > 0.4) {
       return trainingMatch;
     }
 
-    // PRIORITY 3: Check hardcoded templates for word boundary/substring matches
+    // PRIORITY 4: Check remaining hardcoded templates (non-redirect) for word boundary/substring matches
     let bestTemplate = null;
     let bestTriggerLength = 0;
 
     for (const template of this.templates) {
+      if (template.sendLink) continue; // Already checked redirects
+
       for (const trigger of template.triggers) {
         const triggerLower = trigger.toLowerCase();
         
@@ -186,7 +231,7 @@ export class TemplateMatcher {
       };
     }
 
-    // PRIORITY 3: No match - will use AI
+    // PRIORITY 5: No match - will use AI
     return null;
   }
 
