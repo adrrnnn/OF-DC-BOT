@@ -44,6 +44,10 @@ class DiscordOFBot {
     this.responsePending = {}; // Track which users have responses being sent
     this.closedConversations = new Set(); // Users with OF link sent - STOP responding
     this.hasRepliedOnce = new Map(); // Track which users have received their first bot reply (enables conversation mode)
+    this.messageCollectionTimer = new Map(); // Track message collection timers for multi-line messages
+    this.articleQueues = new Map(); // Queue of new articles accumulated during 10-second wait per user
+    this.lastSeenArticles = new Map(); // Track last article we extracted per user to detect new ones
+    this.pendingCombinedMessages = new Map(); // Store combined message waiting for processDM
   }
 
   /**
@@ -226,6 +230,8 @@ class DiscordOFBot {
    * DM polling loop - checks for unread messages
    */
   startDMPolling() {
+    this.messageCollectionTimer = new Map(); // Track collection timers per user
+    
     this.dmPollingInterval = setInterval(async () => {
       try {
         if (!this.isRunning) {
@@ -245,7 +251,8 @@ class DiscordOFBot {
           
           if (hasNewMessages) {
             // New message from the user we're talking to
-            await this.processDM(dm);
+            // START COLLECTION TIMER: Wait a bit for more lines before responding
+            this.startMessageCollectionTimer(dm);
           }
           return; // Don't check other DMs while in conversation
         }
@@ -300,59 +307,40 @@ class DiscordOFBot {
         return false;
       }
 
-      // Get latest USER message (not from us)
-      // Filter out: "You" (Discord's label), "unknown", bot username, and invalid authors (timestamps)
-      const botUsername = this.browser.botUsername || 'You';
-      const latestUserMessage = messages
-        .reverse()
-        .find(msg => {
-          const author = msg.author || '';
-          
-          // Skip invalid authors
-          if (!author || author === 'You' || author.toLowerCase() === 'unknown') {
-            return false;
-          }
-          
-          // Skip bot's own messages
-          if (author.toLowerCase() === botUsername.toLowerCase()) {
-            return false;
-          }
-          
-          // Skip timestamps in bracket format [HH:MM]
-          if (/^\[\d{1,2}:\d{2}\]$/.test(author)) {
-            return false;
-          }
-          
-          // Skip if author is just numbers and time separators
-          if (/^[\d:\[\]—\.\s]+$/.test(author)) {
-            return false;
-          }
-          
-          return true;
-        });
-
-      if (!latestUserMessage) {
+      // Get latest article from this polling cycle (should be 1 per extraction)
+      const latestArticle = messages[0]; // Only 1 article per extraction now
+      if (!latestArticle) {
         return false;
       }
 
-      // Clean message text for consistent deduplication comparison
-      let cleanContent = latestUserMessage.content;
-      cleanContent = cleanContent.replace(/^\[\d{1,2}:\d{2}\]\s*/, '');
-      cleanContent = cleanContent.replace(/^\d{1,2}:\d{2}\s*/, '');
-      cleanContent = cleanContent.replace(/.*?—\s*/, '');
-      cleanContent = cleanContent.replace(/^(понедельник|вторник|среда|четверг|пятница|суббота|воскресенье)[,\.]?\s+\d{1,2}\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)[,\.]?\s+\d{4}\s+г\.\s+в\s+\d{1,2}:\d{2}\s*/, '');
-      cleanContent = cleanContent.replace(/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)[,\.]?\s+\d{1,2}\s+(January|February|March|April|May|June|July|August|September|October|November|December)[,\.]?\s+\d{4}\s+at\s+\d{1,2}:\d{2}\s*/, '');
-      cleanContent = cleanContent.trim();
-
-      // Check if we already replied to this exact message (using cleaned content)
-      if (this.conversationManager.getLastMessageId(userId) === cleanContent) {
-        // Already replied to this message
-        logger.debug(`Deduplication check passed: lastMessageId matches cleaned content`);
+      // Check if this article is different from the last one we saw
+      const lastSeenHTML = this.lastSeenArticles.get(userId);
+      const currentHTML = latestArticle.articleHTML;
+      
+      if (lastSeenHTML === currentHTML) {
+        // Same article as before - no new message
+        logger.debug(`No new articles for ${username}`);
         return false;
       }
 
-      // New message found!
-      logger.info(`New message found from ${username}: "${cleanContent}"`);
+      // NEW ARTICLE DETECTED - add to queue
+      logger.info(`New article from ${username}: "${latestArticle.content}"`);
+      
+      // Initialize queue if needed
+      if (!this.articleQueues.has(userId)) {
+        this.articleQueues.set(userId, []);
+      }
+      
+      // Add article to queue (remove articleHTML from stored version)
+      const { articleHTML, ...articleData } = latestArticle;
+      this.articleQueues.get(userId).push(articleData);
+      
+      // Update last seen article
+      this.lastSeenArticles.set(userId, currentHTML);
+      
+      // Start/reset the collection timer
+      this.startMessageCollectionTimer(dm);
+      
       return true;
 
     } catch (error) {
@@ -402,24 +390,32 @@ class DiscordOFBot {
         return;
       }
 
-      // Get messages (with retry for startup unread messages)
-      const messages = await this.browser.getMessagesWithRetry();
-      if (messages.length === 0) {
-        logger.warn(`No messages found in DM with ${username}`);
-        this.inConversationWith = null;
-        return;
-      }
-
-      logger.debug(`Found ${messages.length} message(s): ${JSON.stringify(messages)}`);
-
-      // Get latest USER message (not our own)
-      // Filter out: "You" (Discord's label), "unknown", bot username, and invalid authors (timestamps, etc)
-      const botUsername = this.browser.botUsername || 'You';
-      logger.debug(`Bot username: ${botUsername}`);
+      // Check if we have a pending combined message from the timer
+      let latestUserMessage = null;
       
-      const latestUserMessage = messages
-        .reverse()
-        .find(msg => {
+      if (this.pendingCombinedMessages.has(userId)) {
+        // Use the combined message from the timer
+        latestUserMessage = this.pendingCombinedMessages.get(userId);
+        this.pendingCombinedMessages.delete(userId);
+        logger.debug(`Using pending combined message: "${latestUserMessage.content}"`);
+      } else {
+        // Fallback: Extract messages normally (for first message or direct calls)
+        const messages = await this.browser.getMessagesWithRetry();
+        if (messages.length === 0) {
+          logger.warn(`No messages found in DM with ${username}`);
+          this.inConversationWith = null;
+          return;
+        }
+
+        logger.debug(`Found ${messages.length} message(s): ${JSON.stringify(messages)}`);
+
+        // Get latest USER message (not our own)
+        const botUsername = this.browser.botUsername || 'You';
+        logger.debug(`Bot username: ${botUsername}`);
+        
+        latestUserMessage = messages
+          .reverse()
+          .find(msg => {
           const author = msg.author || '';
           
           // Skip invalid authors
@@ -449,6 +445,7 @@ class DiscordOFBot {
           
           return true;
         });
+      }
 
       if (!latestUserMessage) {
         logger.debug('No user messages found (all filtered as bot or unknown)');
@@ -607,6 +604,54 @@ class DiscordOFBot {
   }
 
   /**
+   * Start message collection timer - accumulates new articles for 10 seconds
+   * Gets called every 5 seconds during polling; only processes when timer expires
+   */
+  startMessageCollectionTimer(dm) {
+    const { userId, username } = dm;
+    
+    // If timer already running, cancel it and restart (user sent another message)
+    if (this.messageCollectionTimer.has(userId)) {
+      clearTimeout(this.messageCollectionTimer.get(userId));
+      logger.debug(`⏱️  Timer reset for ${username} (new article detected)`);
+    }
+    
+    logger.debug(`⏱️  Message collection timer started for ${username} (10 second wait)`);
+    
+    // Wait 10 seconds to collect all multi-line message articles
+    const timerId = setTimeout(async () => {
+      logger.debug(`⏱️  Message collection timeout - processing DM from ${username}`);
+      this.messageCollectionTimer.delete(userId);
+      
+      // Combine all accumulated articles
+      const accumulatedArticles = this.articleQueues.get(userId) || [];
+      if (accumulatedArticles.length > 0) {
+        // Combine articles from same user into one message
+        const combinedContent = accumulatedArticles
+          .map(article => article.content)
+          .join(' ');
+        
+        logger.debug(`Combined ${accumulatedArticles.length} articles into 1 message: "${combinedContent}"`);
+        
+        // Store the combined message for processDM to use
+        this.pendingCombinedMessages.set(userId, {
+          author: accumulatedArticles[0].author,
+          content: combinedContent,
+          hasOFLink: accumulatedArticles.some(a => a.hasOFLink)
+        });
+        
+        // Clear the queue
+        this.articleQueues.delete(userId);
+        
+        // Process the DM
+        await this.processDM(dm);
+      }
+    }, 10000); // 10 second wait
+    
+    this.messageCollectionTimer.set(userId, timerId);
+  }
+
+  /**
    * Stop the bot gracefully
    */
   async stop() {
@@ -619,6 +664,14 @@ class DiscordOFBot {
     }
     if (this.healthCheckInterval) {
       clearInterval(this.healthCheckInterval);
+    }
+    
+    // Clear message collection timers
+    if (this.messageCollectionTimer) {
+      for (const [userId, timerId] of this.messageCollectionTimer.entries()) {
+        clearTimeout(timerId);
+      }
+      this.messageCollectionTimer.clear();
     }
 
     // Close browser

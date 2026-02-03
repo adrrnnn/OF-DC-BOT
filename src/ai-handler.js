@@ -84,15 +84,12 @@ export class AIHandler {
       // Build natural prompt using training context
       const conversationContext = this.buildConversationContext();
       
-      const prompt = `You are responding in a Discord DM conversation. Be natural, casual, and conversational - like texting with a friend.
-
-${conversationContext}
-
+      const prompt = `${conversationContext}
 ${systemPrompt}
 
 The user just said: "${userMessage}"
 
-Respond naturally in 1-2 short sentences. Keep it casual and friendly, like you're texting.`;
+Respond naturally in 1-2 short sentences.`;
 
       const provider = this.providerFactory.getProvider();
       
@@ -114,7 +111,11 @@ Respond naturally in 1-2 short sentences. Keep it casual and friendly, like you'
       if (this.providerFactory.gptNanoProvider && this.providerFactory.gptNanoProvider.isAvailable()) {
         try {
           logger.info(`Forcing OpenAI fallback...`);
-          const prompt = `You are a real flirty girl on Discord. Read what they're actually asking and respond to it directly. Keep responses 1-2 short sentences. Use lowercase, casual texting with emojis (hehe, lol, 💕, 😊, 😏, etc). Match their energy and tone. Be playful and flirty but ALWAYS address what they asked. The user just said: "${userMessage}". Respond naturally.`;
+          const prompt = `${systemPrompt}
+
+The user just said: "${userMessage}"
+
+Respond naturally in 1-2 short sentences.`;
           const response = await this.providerFactory.gptNanoProvider.generateResponse(prompt, systemPrompt);
           logger.info(`✅ OpenAI succeeded after Gemini failed`);
           return response;

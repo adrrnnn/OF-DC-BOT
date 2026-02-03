@@ -473,227 +473,100 @@ export class BrowserController {
         const debug = {
           articlesFound: 0,
           messagesExtracted: 0,
-          errors: []
+          errors: [],
+          articleDetails: [] // NEW: Log details of each article
         };
         
         // Get all article elements
         const articles = Array.from(document.querySelectorAll('[role="article"]'));
         debug.articlesFound = articles.length;
         
+        // NEW DEBUG: Log first 3 articles to understand DOM structure
+        for (let i = Math.max(0, articles.length - 3); i < articles.length; i++) {
+          const article = articles[i];
+          const innerText = (article.innerText || article.textContent).substring(0, 100);
+          const firstSpan = article.querySelector('span[role="button"]')?.textContent || 'N/A';
+          debug.articleDetails.push({
+            index: i,
+            innerTextPreview: innerText,
+            authorSpan: firstSpan
+          });
+        }
+        
         if (articles.length === 0) {
           debug.errors.push('No articles found');
           return { messages: msgs, debug };
         }
 
-        // Process last N articles
-        for (const article of articles.slice(-limit)) {
+        // Extract ONLY the latest 1 article
+        let processedCount = 0;
+        
+        for (let i = articles.length - 1; i >= 0 && processedCount < 1; i--) {
+          const article = articles[i];
           try {
             let author = 'Unknown';
             let content = '';
             
-            // Get all text from the article
-            const fullText = article.textContent?.trim() || '';
-            
-            if (!fullText || fullText.length < 3) {
-              debug.errors.push('Empty or too short message');
-              continue;
+            // Extract author
+            const authorSpan = article.querySelector('span[role="button"]');
+            if (authorSpan) {
+              author = authorSpan.textContent.trim().split(/\s+/)[0];
             }
             
-            // Split by lines and filter empty lines
-            const lines = fullText.split('\n')
-              .map(l => l.trim())
-              .filter(l => l.length > 0);
+            // Extract content
+            const allText = article.innerText || article.textContent;
+            const lines = allText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
             
-            if (lines.length === 0) continue;
+            const contentLines = [];
+            for (const line of lines) {
+              // Skip ONLY metadata patterns
+              if (/^\d{1,2}:\d{2}$/.test(line)) continue;
+              if (/^\[\d{1,2}:\d{2}\]$/.test(line)) continue;
+              if (/^\s*—\s*$/.test(line)) continue;
+              if (/^(Edit|Delete|Reply|More)$/.test(line)) continue;
+              if (author && line === author) continue;
+              if (/г\.\s+в\s+\d{1,2}:\d{2}/.test(line)) continue;
+              if (/^\d{1,2}\s+(January|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)/i.test(line)) continue;
+              if (/^(понедельник|вторник|среда|четверг|пятница|суббота|воскресенье)/.test(line)) continue;
+              
+              contentLines.push(line);
+            }
             
-            // Extract author from message header - CRITICAL FIX
-            // Discord uses specific DOM structure for usernames
-            const authorElement = article.querySelector('[class*="username"], [class*="author"], span[role="heading"]') ||
-                                 article.querySelector('span[class*="userName"]') ||
-                                 article.querySelector('[class*="headerText"]');
+            if (contentLines.length > 0) {
+              content = [...new Set(contentLines)].join(' ').trim();
+            }
             
-            if (authorElement?.textContent) {
-              author = authorElement.textContent.trim();
-            } else {
-              // Fallback: find first line that doesn't look like a date/timestamp
-              let firstValidLine = '';
-              for (const line of lines) {
-                // Skip timestamp lines like "[03:05]" or "03:05"
-                if (/^\[\d{1,2}:\d{2}\]/.test(line) || /^\d{1,2}:\d{2}/.test(line)) continue;
-                // Skip Russian day-of-week and date lines
-                if (/^(понедельник|вторник|среда|четверг|пятница|суббота|воскресенье|[а-яё]{5,},)/i.test(line)) continue;
-                // Found a non-date line
-                firstValidLine = line;
-                break;
+            content = content.replace(/^[a-zA-Z0-9_\.]+\s+/, '').trim();
+            
+            // Only add if there's actual content (message text)
+            // Author validation happens in processDM
+            if (content && content.length > 1) {
+              // Skip bot messages
+              if (author && author.toLowerCase() === 'margaret_1993.gm_18743') {
+                debug.errors.push('Message is from bot, skipping');
+                processedCount++;
+                continue;
               }
               
-              // If no valid line found, search all lines for one with username pattern (not date)
-              if (!firstValidLine) {
-                for (const line of lines) {
-                  // Try to find a line that has "username HH:MM" pattern (indicates actual message with author+time)
-                  if (/^([^\d\[\]:]+?)\s+[\d\[\]]*[\d:]/.test(line)) {
-                    firstValidLine = line;
-                    break;
-                  }
-                }
+              // Use generic author if couldn't extract
+              if (!author || author === 'Unknown') {
+                author = 'dm_user';
               }
               
-              // Still nothing? Use first line that's not a pure date
-              if (!firstValidLine && lines.length > 0) {
-                firstValidLine = lines[0];
-              }
-              
-              // Strategy 1: Look for "username HH:MM" or "username [HH:MM]" pattern
-              const timeMatch = firstValidLine.match(/^([^\d\[\]:]+?)\s+[\d\[\]]*[\d:]/);
-              if (timeMatch) {
-                author = timeMatch[1].trim();
-              } else {
-                // Strategy 2: Look for username before dash separator
-                const dashMatch = firstValidLine.match(/^([^——\d\[\]]+?)(?:—|—|$)/);
-                if (dashMatch && dashMatch[1].trim().length > 0) {
-                  author = dashMatch[1].trim();
-                } else {
-                  // Strategy 3: Just take first non-timestamp/non-date word that looks like a username
-                  for (const line of lines) {
-                    // Skip lines that are just dates/times
-                    if (/^(понедельник|вторник|среда|четверг|пятница|суббота|воскресенье|[а-яё]{5,},|January|February|March|April|May|June|July|August|September|October|November|December)/i.test(line)) continue;
-                    
-                    const words = line.split(/[\s—\[\]]+/);
-                    for (const w of words) {
-                      // Require 3+ chars to avoid fragments like "my", "when", "us", "re"
-                      if (w.length >= 3 && /[a-zA-Z_]/.test(w) && !/^\d/.test(w) && !/^\[/.test(w)) {
-                        author = w;
-                        break;
-                      }
-                    }
-                    if (author && author !== 'Unknown') break;
-                  }
-                }
-              }
-            }
-            
-            // RELAXED: If author extraction failed, allow a generic fallback instead of skipping
-            // This prevents valid messages from being discarded just because author wasn't parsed
-            if (!author || author === 'Unknown' || author.length === 0) {
-              logger.debug(`Author extraction failed, using fallback 'dm_user'`);
-              author = 'dm_user'; // Fallback author name for first-message extraction
-            }
-            
-            // CRITICAL: Validate author is not a date/timestamp/day-of-week
-            // This catches corrupted extraction from multi-line messages
-            // Invalid patterns: "пятница,", "15:09", "January 16", etc.
-            const dayOfWeekPattern = /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|понедельник|вторник|среда|четверг|пятница|суббота|воскресенье),?$/i;
-            const longRussianPattern = /^[а-яё]{5,},?$/i;  // Russian words 5+ chars (covers all day names and months)
-            
-            if (dayOfWeekPattern.test(author) || longRussianPattern.test(author)) {
-              debug.errors.push(`Author is day-of-week or Russian date (${author}), skipping`);
-              continue;
-            }
-            
-            // Skip if author looks like a timestamp or date
-            if (/^\d{1,2}:\d{2}/.test(author) || /^\d{1,2}\s+(January|February|марта|февраля)/i.test(author)) {
-              debug.errors.push(`Author looks like timestamp/date (${author}), skipping`);
-              continue;
-            }
-            
-            // CRITICAL: Skip messages from the bot itself (karen_1962.ec_19875)
-            // This prevents the bot from re-processing its own messages
-            const botUsername = 'karen_1962.ec_19875';
-            if (author === botUsername || author.toLowerCase() === botUsername.toLowerCase()) {
-              debug.errors.push('Message is from bot, skipping');
-              continue;
-            }
-            
-            // Find actual message content by skipping metadata
-            // CRITICAL FIX: Remove Discord UI button text and React menu items
-            for (let i = lines.length - 1; i >= 0; i--) {
-              let line = lines[i];
-              
-              // Skip timestamps like "15:09", "15:11", "19:36", "19:37"
-              if (/^\d{1,2}:\d{2}/.test(line)) continue;
-              
-              // Skip dates in Russian or English
-              if (/^\d{1,2}\s+(January|February|March|April|May|June|July|August|September|October|November|December|января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)/i.test(line)) continue;
-              
-              // Skip day of week (Russian: понедельник, вторник, etc.)
-              if (/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|понедельник|вторник|среда|четверг|пятница|суббота|воскресенье|[а-я]{9,})/i.test(line)) continue;
-              
-              // Skip lines with only emoji or formatting
-              if (/^[—\[\]◉○●\d:]+$/.test(line)) continue;
-              
-              // Skip lines that look like author info
-              if (line === author) continue;
-              
-              // Skip bot response markers and OF content indicators
-              if (/^(its free|lmk when|lmk|sub|subscribe|onlyfans|only fans|https?:\/\/|link|pooks|hehe|cutie|baby|babe)/i.test(line)) continue;
-              
-              // CRITICAL: Remove Discord UI elements - button text, emoji reactions, menus
-              // Pattern: :emoji_name:Текст:emoji_name:Текст... (Discord reaction buttons)
-              line = line.replace(/:[^\s:]+:(?:Нажмите|Click|Add).*?(?=:[^\s:]+:|$)/gi, '');
-              
-              // Remove React menu items: "Изменить", "Переслать", "Удалить", "Edit", "Forward", "Delete"
-              line = line.replace(/\b(Изменить|Переслать|Удалить|Скопировать|Ответить|Edit|Forward|Delete|Copy|Reply|More|Ещё)\b/gi, '');
-              
-              // Remove emoji pattern like :thumbsup:, :thumbsdown:, :100:, etc
-              line = line.replace(/:[a-z0-9_+-]+:/gi, '');
-              
-              // Remove "Нажмите, чтобы отреагировать" (Click to react text)
-              line = line.replace(/Нажмите,?\s*чтобы\s+отреагировать/gi, '');
-              
-              // Remove "Добавить реакцию" (Add reaction)
-              line = line.replace(/Добавить\s+реакцию/gi, '');
-              
-              // Clean up extra whitespace
-              line = line.replace(/\s+/g, ' ').trim();
-              
-              // Found the actual message if there's content left
-              if (line.length > 1) {
-                content = line;
-                break;
-              }
-            }
-            
-            // Fallback: if no content found, use the last non-empty line that's not metadata
-            if (!content && lines.length > 1) {
-              for (let i = lines.length - 1; i >= 1; i--) {
-                let line = lines[i];
-                
-                // Clean UI elements first
-                line = line.replace(/:[^\s:]+:(?:Нажмите|Click|Add).*?(?=:[^\s:]+:|$)/gi, '');
-                line = line.replace(/\b(Изменить|Переслать|Удалить|Скопировать|Ответить|Edit|Forward|Delete|Copy|Reply|More|Ещё)\b/gi, '');
-                line = line.replace(/:[a-z0-9_+-]+:/gi, '');
-                line = line.replace(/Нажмите,?\s*чтобы\s+отреагировать/gi, '');
-                line = line.replace(/Добавить\s+реакцию/gi, '');
-                line = line.replace(/\s+/g, ' ').trim();
-                
-                if (line.length > 2 && line !== author && !/^\d{1,2}:\d{2}/.test(line)) {
-                  content = line;
-                  break;
-                }
-              }
-            }
-            
-            // Clean up content - remove leading author name if present
-            if (content && content.startsWith(author)) {
-              content = content.substring(author.length).replace(/^[\s—\[\]]+/, '').trim();
-            }
-            
-            // Double-check: if content is only UI text, skip it
-            if (content && /^(Нажмите|Click|Edit|Forward|Delete|More|Ещё|Добавить|Изменить|Переслать|Удалить|Скопировать|Ответить|Reply|Copy)/.test(content)) {
-              debug.errors.push('Content is only UI text');
-              continue;
-            }
-            
-            // Check for OF link in the message content
-            const hasOFLink = /onlyfans|of\s*link|my\s*link|check\s*me\s*out/i.test(content + ' ' + fullText);
-            
-            // Only add if we have meaningful content
-            if (content && content.length > 2) {
-              msgs.push({ author, content, hasOFLink });
+              msgs.push({ 
+                author, 
+                content, 
+                hasOFLink: /onlyfans|of\s*link/i.test(content),
+                articleHTML: article.outerHTML
+              });
               debug.messagesExtracted++;
             }
+            
+            processedCount++;
+            
           } catch (e) {
             debug.errors.push(`Error: ${e.message}`);
+            processedCount++;
           }
         }
 
@@ -707,7 +580,7 @@ export class BrowserController {
       if (messages.length === 0) {
         logger.debug('getMessages: No messages extracted - DOM may not have [role="article"] elements loaded');
       } else {
-        logger.debug(`getMessages: Extracted ${messages.length} message(s): ${JSON.stringify(messages.slice(0, 2))}`);
+        logger.debug(`getMessages: Extracted ${messages.length} message(s): ${JSON.stringify(messages)}`);
       }
       
       return messages;
