@@ -98,11 +98,12 @@ export class ConversationManager {
     }
     
     // If conversation has been idle for more than 10 minutes, treat it as new
+    // BUT: if OF link was already sent, NEVER reset it - that user is done
     const tenMinutes = 10 * 60 * 1000;
     const timeSinceStart = Date.now() - conv.startTime;
     
-    if (timeSinceStart > tenMinutes) {
-      // Reset the conversation
+    if (timeSinceStart > tenMinutes && !conv.ofLinkSent) {
+      // Reset the conversation ONLY if link wasn't sent
       this.conversations.set(userId, {
         startTime: Date.now(),
         lastMessageId: null,

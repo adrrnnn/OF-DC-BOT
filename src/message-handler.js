@@ -39,7 +39,7 @@ export class MessageHandler {
       // CRITICAL: Check if we've already sent the OF link to this user
       // If yes, CLOSE CHAT - don't respond anymore
       const conversationData = this.conversationManager.getConversationState(userId);
-      if (conversationData && conversationData.ofLinkSent) {
+      if (conversationData && conversationData.hasOFLink) {
         logger.info(`🚫 Already sent OF link to ${userId} - IGNORING message, closing chat`);
         return null; // Don't respond at all
       }
@@ -59,9 +59,8 @@ export class MessageHandler {
         const ofLink = process.env.OF_LINK;
         const redirectMessage = `nah baby all the fun stuff is on my OF hehe\nits free to sub :3\n${ofLink}\nlmk when u do ok? <33`;
         
-        // Mark that we sent link and end conversation
+        // Mark that we sent link - DO NOT end conversation, keep record for restart detection
         this.conversationManager.markOFLinkSent(userId);
-        this.conversationManager.endConversation(userId);
         
         const delay = this.getRandomDelay();
         await new Promise(r => setTimeout(r, delay));
@@ -122,9 +121,9 @@ export class MessageHandler {
         const linkMessage = this.templateMatcher.getOFLinkMessage(ofLink);
         finalResponse = `${response}\n\n${linkMessage}`;
         
-        // Mark that we sent the link AND close conversation
+        // Mark that we sent the link - DO NOT end conversation, keep record for restart detection
+        // The conversation record must persist so hasOFLinkBeenSent() can find it on bot restart
         this.conversationManager.markOFLinkSent(userId);
-        this.conversationManager.endConversation(userId);
         closeChat = true;
         logger.info('OF link appended to response - CLOSING CHAT');
       }
