@@ -146,15 +146,17 @@ echo ========================================
 echo.
 echo [1] Configure Discord Account
 echo [2] Change OF_LINK
-echo [3] Start Bot
-echo [4] Exit
+echo [3] Select Profile
+echo [4] Start Bot
+echo [5] Exit
 echo.
-set /p choice="Enter choice (1-4): "
+set /p choice="Enter choice (1-5): "
 
 if "%choice%"=="1" goto CONFIGURE_ACCOUNT
 if "%choice%"=="2" goto CHANGE_OF_LINK
-if "%choice%"=="3" goto START_BOT
-if "%choice%"=="4" goto END
+if "%choice%"=="3" goto SELECT_PROFILE
+if "%choice%"=="4" goto START_BOT
+if "%choice%"=="5" goto END
 echo Invalid choice. Try again.
 pause
 goto MAIN_MENU
@@ -404,7 +406,36 @@ if %choice% geq 1 (
 echo Invalid choice. Try again.
 pause
 goto LIST_ACCOUNTS
+:SELECT_PROFILE
+cls
+echo.
+echo ========================================
+echo   Select Profile
+echo ========================================
+echo.
 
+node scripts\profile-manager.js view
+if %ERRORLEVEL% NEQ 0 (
+    echo [ERROR] Failed to load profiles
+    pause
+    goto MAIN_MENU
+)
+
+echo.
+set /p PROFILE_ID="Enter profile ID (or press Enter to cancel): "
+
+if "%PROFILE_ID%"=="" goto MAIN_MENU
+
+node scripts\profile-manager.js setactive %PROFILE_ID%
+if %ERRORLEVEL% NEQ 0 (
+    echo [ERROR] Invalid profile ID
+    pause
+    goto SELECT_PROFILE
+)
+
+echo.
+pause
+goto MAIN_MENU
 :CHANGE_OF_LINK
 cls
 echo.

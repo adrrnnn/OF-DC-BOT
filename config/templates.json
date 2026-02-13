@@ -1,30 +1,20 @@
 {
   "templates": [
     {
-      "id": "appearance_redirect",
-      "triggers": ["what do you look like", "what are you like", "describe yourself", "show yourself", "picture of you", "whats your appearance", "how do you look", "what u look like", "describe your body", "do you look like", "describe you"],
+      "id": "greeting",
+      "triggers": ["hi", "hey", "hello", "hii", "hiii", "heyy", "heyyy", "yo", "sup", "wassup", "whats up", "what's up", "how u", "hru", "hi there", "hey there", "hello there", "heya", "hey baby", "hey there baby", "hello baby"],
       "responses": [
-        "hmm we'll see lets continue our convo here hehe",
-        "ill show u there hehe",
-        "all my pics are over there :p",
-        "youll see me on OF :3"
-      ],
-      "sendLink": true
-    },
-    {
-      "id": "pics_request_redirect",
-      "triggers": ["send pic", "send pics", "can i see", "show me", "send nudes", "send photo", "can you send", "got pics", "pics of you", "picture", "photo", "image", "send picture", "do you send pics", "do you send"],
-      "responses": [
-        "hmm we'll see lets continue our convo here hehe",
-        "thats all on OF babe :p",
-        "i have that there for u :3",
-        "wanna see? thats on OF"
-      ],
-      "sendLink": true
+        "hiii 💕",
+        "hey there 😊",
+        "hiiii",
+        "heyyy cutie",
+        "yo 😏",
+        "heyy whatchu up to"
+      ]
     },
     {
       "id": "meetup_redirect",
-      "triggers": ["meet", "meetup", "hook up", "come over", "visit", "in person", "meet up sometime"],
+      "triggers": ["meet", "meetup", "hook up", "come over", "visit", "in person", "meet up sometime", "netflix and chill", "netflix chill", "hang out"],
       "responses": [
         "hmm we'll see lets continue our convo here hehe",
         "thats for my OF people hehe",
@@ -46,226 +36,15 @@
       "sendLink": true
     },
     {
-      "id": "greeting",
-      "triggers": ["hi", "hey", "hello", "hii", "hiii", "heyy", "heyyy", "yo", "sup", "wassup", "whats up", "what's up", "how u", "hru", "hi there", "hey there", "hello there", "heya", "hey baby", "hey there baby", "hello baby"],
-      "responses": [
-        "hiii 💕",
-        "hiii doing fine hbu?",
-        "heyy cutie :3",
-        "hiiii 😊",
-        "hey there hehe",
-        "yo whatchu up to"
-      ]
-    },
-    {
-      "id": "how_are_you",
-      "triggers": ["how are you", "hru", "how r u", "how u doing", "hows it going", "how are u", "wyd", "what you doing", "whatcha doing", "how's it", "hows it", "whats good", "how you been", "hows life"],
-      "responses": [
-        "doing good hbu 😊",
-        "im alright wbu",
-        "pretty decent 💭 wbu",
-        "im good hehe you",
-        "im solid hbu",
-        "doing alright 😏 what about you",
-        "cant complain, you"
-      ]
-    },
-    {
-      "id": "compliment_response",
-      "triggers": ["cute", "beautiful", "pretty", "gorgeous", "hot", "sexy", "amazing", "stunning", "love your", "youre cute", "youre beautiful", "youre hot", "so hot", "so beautiful", "so pretty", "look good", "looking good", "nice"],
-      "responses": [
-        "thankyouu 😭 did it turn you on hehe :3",
-        "aw thanks babe 💕",
-        "hehe thanks youre sweet",
-        "stoppp youre gonna make me blush 😊",
-        "aww youre too kind :p",
-        "thanks 💖 youre not so bad yourself"
-      ]
-    },
-    {
-      "id": "where_then",
-      "triggers": ["where then", "where do you", "how can i see", "where can i", "other option", "where else", "anywhere else", "other platform", "other place"],
-      "responses": [
-        "i want to tell youuu but youd probably judge me lol would you?",
-        "theres somewhere else :3 you promise not to judge?",
-        "depends.. you wouldnt judge me right?"
-      ],
-      "followUp": true
-    },
-    {
-      "id": "wont_judge",
-      "triggers": ["no", "nope", "i wont", "never", "no judgement", "of course not", "wouldnt judge", "wont judge", "promise", "dont judge", "no way", "never judge", "i promise"],
-      "responses": [
-        "welll i post most of my stuff for free on onlyfans :3",
-        "okay so i do onlyfans hehe its free to sub",
-        "i usually post them for free on OF :p"
-      ],
-      "sendLink": true
-    },
-    {
       "id": "sexual_direct",
-      "triggers": ["pussy", "tits", "boobs", "ass", "nudes", "naked", "horny", "dick", "cock", "fuck", "sex", "nipples", "feet", "blowjob", "sext", "cum"],
+      "triggers": ["pussy", "tits", "boobs", "ass", "nudes", "naked", "horny", "dick", "cock", "fuck", "sex", "nipples", "feet", "blowjob", "cum"],
       "responses": [
-        "oh my lol arent you straightforward? :p i do have that kind of content just not here tho",
-        "hahaha i have that stuff but not here hehe",
-        "i keep that for my OF :3",
-        "youre bold but nah not here babe"
+        "oh my lol arent you straightforward? :p i dont really do that here tho",
+        "hahaha i have that kind of content just not here :3",
+        "lol someones excited hehe i dont do that here tho",
+        "youre bold :p but nah not here"
       ],
       "sendLink": true
-    },
-    {
-      "id": "positive_response",
-      "triggers": ["yes", "yeah", "yea", "sure", "ok", "okay", "alright", "sounds good", "im down", "down", "bet", "for sure", "definitely"],
-      "responses": [
-        "bet then check out my OF hehe",
-        "yay! its all on OF :3",
-        "ok then lets do it there :p",
-        "bet bet check my OF",
-        "for sure babe come to OF"
-      ],
-      "sendLink": true
-    },
-    {
-      "id": "age_location",
-      "triggers": ["asl", "age", "how old", "where are you from", "where you from", "location", "where u from", "how old are you", "ur age", "are you from", "from where", "your name", "whats your name", "name", "where u at", "country", "city", "state", "tell me about you", "race", "ethnicity", "sex", "gender", "skin color", "describe yourself physically"],
-      "responses": [
-        "all that info is on my OF hehe",
-        "youll find out everything there :p",
-        "its all part of the mystery baby",
-        "thats something for you to discover on OF :3",
-        "check me out there and youll learn all about me"
-      ],
-      "sendLink": true
-    },
-    {
-      "id": "onlyfans_question",
-      "triggers": ["onlyfans", "only fans", "of", "do you sell", "are you a seller", "seller", "content creator", "model", "instagram"],
-      "responses": [
-        "yeah i do onlyfans hehe its free to sub :3",
-        "i do onlyfans! its free btw",
-        "yeah i have an onlyfans :p want the link?"
-      ],
-      "sendLink": true
-    },
-    {
-      "id": "cant_subscribe",
-      "triggers": ["dont have card", "no card", "cant subscribe", "cant sub", "dont have money", "too expensive", "i cant", "poor", "broke", "no payment"],
-      "responses": [
-        "aww thats too bad :( you could make one but up to you",
-        "rip :( but i have free stuff too hehe"
-      ]
-    },
-    {
-      "id": "goodbye",
-      "triggers": ["bye", "goodbye", "gotta go", "gtg", "cya", "see you", "later", "goodnight", "gn", "talk later", "bye bye"],
-      "responses": [
-        "byee 💕 message me there",
-        "bye talk to you there hehe",
-        "cya 😊"
-      ]
-    },
-    {
-      "id": "snapchat",
-      "triggers": ["snap", "snapchat", "whats your snap", "got snap", "sc", "snap me"],
-      "responses": [
-        "nah i dont use snap but i have something better :3",
-        "no snap hehe but somewhere else"
-      ],
-      "followUp": true
-    },
-    {
-      "id": "number_request",
-      "triggers": ["number", "phone", "text me", "whats your number", "phone number", "call me"],
-      "responses": [
-        "nah i dont give that out but somewhere else we can talk :3",
-        "cant do that but theres another place hehe"
-      ],
-      "followUp": true
-    },
-    {
-      "id": "what_do_you_do",
-      "triggers": ["what do you do", "what you do", "job", "work", "profession", "career", "hobbies", "what are you up to", "what u up to", "whats going on"],
-      "responses": [
-        "im mostly doing content creation hehe :3",
-        "just posting stuff and keeping busy with my content",
-        "creating content and being active on another platform mostly"
-      ],
-      "sendLink": true
-    },
-    {
-      "id": "interested",
-      "triggers": ["interested", "wanna", "want to", "lets", "down to", "interested in", "would you"],
-      "responses": [
-        "ohhh interesting 😏 tell me more",
-        "ooo what did you have in mind",
-        "thats hot tell me more :p",
-        "no cap? what kind"
-      ],
-      "sendLink": false
-    },
-    {
-      "id": "laugh_response",
-      "triggers": ["haha", "hehe", "lol", "lmao", "rofl", "funny", "hilarious", "made me laugh"],
-      "responses": [
-        "hehe youre funny too",
-        "lol you got jokes",
-        "hehehehe youre silly"
-      ]
-    },
-    {
-      "id": "name_question",
-      "triggers": ["whats your name", "your name", "name", "who are you", "who r u"],
-      "responses": [
-        "youll find out more about me there hehe",
-        "all that stuff is on my OF :p",
-        "thats for you to discover hehe"
-      ],
-      "sendLink": true
-    },
-    {
-      "id": "romantic_interest",
-      "triggers": ["fall for you", "like you", "love you", "crush on you", "attracted to you", "interested in dating"],
-      "responses": [
-        "aw but we just met hehe",
-        "youre sweet but we dont really know each other :p",
-        "we just started talking lol"
-      ]
-    },
-    {
-      "id": "dm_continued",
-      "triggers": ["keep talking", "chat with you", "talk some more", "continue", "more", "what else", "tell me more"],
-      "responses": [
-        "whats on your mind",
-        "yeah of course hehe",
-        "ofc! whatcha wanna know"
-      ]
-    },
-    {
-      "id": "night_greeting",
-      "triggers": ["night", "goodnight", "going to sleep", "sleep", "tired", "sleepy"],
-      "responses": [
-        "goodnight! sleep well :3",
-        "gn hehe",
-        "nite!"
-      ]
-    },
-    {
-      "id": "morning_greeting",
-      "triggers": ["morning", "good morning", "gm", "just woke up", "woke up", "wake"],
-      "responses": [
-        "morningg :3",
-        "gm! hows it going",
-        "morning! how are you"
-      ]
-    },
-    {
-      "id": "music_interest",
-      "triggers": ["music", "song", "artist", "listen to", "favorite song", "what music", "movie", "show", "watch", "favorite movie", "favorite artist"],
-      "responses": [
-        "honestly dont have time for that lol, too busy with my stuff :3",
-        "idk im not super into that tbh heheheh",
-        "i like some stuff but mostly just focused on content"
-      ]
     },
     {
       "id": "sexting_request_redirect",
@@ -278,24 +57,34 @@
       "sendLink": true
     },
     {
-      "id": "blurred_pic_redirect",
-      "triggers": ["blurred", "can't see", "blocked", "unblur"],
+      "id": "pics_request_redirect",
+      "triggers": ["send pics", "send nudes", "show me", "send photo", "send me pics", "pics please", "nudes"],
       "responses": [
-        "cant see it :( send it on OF instead :p",
-        "not showing right, try OF",
-        "its not loading for me"
+        "hehe i keep those on OF its free :p",
+        "lol im not sending that here",
+        "those are on onlyfans babe"
       ],
       "sendLink": true
     },
     {
-      "id": "refused_of_endconv",
-      "triggers": ["no onlyfans", "dont do onlyfans", "not interested", "wont pay"],
+      "id": "snapchat_redirect",
+      "triggers": ["whats your snap", "snap me", "add me on snap", "give me your number", "text me", "phone", "dm me", "your snap", "what's your snap"],
       "responses": [
-        "ok well thats the only place im comfy talking :/ bye!",
-        "thats where im comfortable - good luck!",
-        "its all on OF - take care!"
+        "i keep everything on OF honestly",
+        "thats what OF is for babe :p",
+        "all my contact stuff is on OF"
       ],
-      "endConversation": true
+      "sendLink": true
+    },
+    {
+      "id": "onlyfans_question",
+      "triggers": ["do you sell", "are you a creator", "do you do onlyfans", "are you on onlyfans", "onlyfans"],
+      "responses": [
+        "yeah i do :p its free to sub tho",
+        "yeah babe its free :3",
+        "yess its free to check out"
+      ],
+      "sendLink": true
     }
   ],
   "ofLinkMessage": "its free to sub :3\n{OF_LINK}",

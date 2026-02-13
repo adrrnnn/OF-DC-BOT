@@ -142,7 +142,7 @@ Reply naturally in 1-2 short sentences.`;
    * Validate if AI response is good enough (not too dry/generic)
    */
   isGoodResponse(response, userMessage) {
-    if (!response || response.length < 5) {
+    if (!response || response.length < 3) {
       return false;
     }
 

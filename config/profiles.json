@@ -1,0 +1,33 @@
+{
+  "profiles": [
+    {
+      "id": 1,
+      "name": "Iris",
+      "age": "21",
+      "location": "Taiwan",
+      "race": "Asian"
+    },
+    {
+      "id": 2,
+      "name": "Iris",
+      "age": "21",
+      "location": "Taiwan",
+      "race": "Chinese"
+    },
+    {
+      "id": 3,
+      "name": "Jill",
+      "age": "22",
+      "location": "Philippines",
+      "race": "Filipino"
+    },
+    {
+      "id": 4,
+      "name": "Jess",
+      "age": "19",
+      "location": "India",
+      "race": "Indian"
+    }
+  ],
+  "activeProfileId": 3
+}

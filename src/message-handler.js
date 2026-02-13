@@ -15,8 +15,8 @@ import { logger } from './logger.js';
  * Stage 3: End conversation (after link sent or refused)
  */
 export class MessageHandler {
-  constructor(conversationManager) {
-    this.templateMatcher = new TemplateMatcher();
+  constructor(conversationManager, activeProfile) {
+    this.templateMatcher = new TemplateMatcher(activeProfile);
     this.aiHandler = new AIHandler();
     this.conversationManager = conversationManager;
     

@@ -21,6 +21,14 @@ export class BrowserController {
     this.maxLoginAttempts = 3;
     this.healthCheckInterval = null;
     this.healthCheckCallback = null;
+    this.bot = null;
+  }
+
+  /**
+   * Inject bot reference for accessing bot state (like sentMessages)
+   */
+  setBot(bot) {
+    this.bot = bot;
   }
 
   /**
@@ -549,6 +557,21 @@ export class BrowserController {
                 debug.errors.push('Message is from bot, skipping');
                 processedCount++;
                 continue;
+              }
+              
+              // CRITICAL: Strip any leading [ ] or [ content ] prefixes for self-response check
+              // These prefixes appear when we extract our own messages
+              const normalizedContent = content.replace(/^\[\s*\]\s*/, '').trim();
+              
+              // Skip messages that WE (the bot) just sent
+              // These can come back with author="dm_user" when we lose author attribution
+              // Must check BOTH the normalized version AND the raw content
+              if (this.bot && this.bot.sentMessages) {
+                if (this.bot.sentMessages.has(content) || this.bot.sentMessages.has(normalizedContent)) {
+                  debug.errors.push('Message is from bot (in sentMessages), skipping');
+                  processedCount++;
+                  continue;
+                }
               }
               
               // Use generic author if couldn't extract

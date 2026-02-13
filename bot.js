@@ -3,6 +3,7 @@ import { BrowserController } from './src/browser-controller.js';
 import { MessageHandler } from './src/message-handler.js';
 import { ConversationManager } from './src/conversation-manager.js';
 import { DMCacheManager } from './src/dm-cache-manager.js';
+import { ProfileLoader } from './src/profile-loader.js';
 import { logger } from './src/logger.js';
 import fs from 'fs';
 import path from 'path';
@@ -27,7 +28,8 @@ class DiscordOFBot {
     this.browser = new BrowserController();
     this.conversationManager = new ConversationManager();
     this.dmCacheManager = new DMCacheManager(); // NEW: Cache DM states
-    this.messageHandler = new MessageHandler(this.conversationManager);
+    this.profileLoader = new ProfileLoader(); // Load active profile
+    this.messageHandler = new MessageHandler(this.conversationManager, this.profileLoader.activeProfile);
     this.isRunning = false;
     this.dmCheckInterval = 60000; // Default, will be overridden in start()
     this.lastChecked = 0;
@@ -46,8 +48,10 @@ class DiscordOFBot {
     this.hasRepliedOnce = new Map(); // Track which users have received their first bot reply (enables conversation mode)
     this.messageCollectionTimer = new Map(); // Track message collection timers for multi-line messages
     this.articleQueues = new Map(); // Queue of new articles accumulated during 10-second wait per user
+    this.sentMessages = new Set(); // Track messages WE sent to avoid re-extracting them
     this.lastSeenArticles = new Map(); // Track last article we extracted per user to detect new ones
     this.pendingCombinedMessages = new Map(); // Store combined message waiting for processDM
+    this.startupComplete = false; // Flag to prevent responding to old history on startup
   }
 
   /**
@@ -89,6 +93,9 @@ class DiscordOFBot {
       logger.info(`   Email: ${process.env.DISCORD_EMAIL}`);
       logger.info(`   OF Link: ${process.env.OF_LINK}`);
       logger.info(`   Check Every: ${this.dmCheckInterval}ms`);
+      if (this.profileLoader.activeProfile) {
+        logger.info(`   Profile: ${this.profileLoader.activeProfile.name} (${this.profileLoader.activeProfile.age}, ${this.profileLoader.activeProfile.location})`);
+      }
       logger.info('');
 
       // Step 1: Launch browser
@@ -97,6 +104,8 @@ class DiscordOFBot {
       if (!launched) {
         throw new Error('Failed to launch browser');
       }
+      // Inject bot reference into browser-controller so it can access sentMessages
+      this.browser.setBot(this);
       logger.info('      [OK] Browser launched');
       logger.info('');
 
@@ -156,6 +165,9 @@ class DiscordOFBot {
       logger.info('');
       logger.info('To stop the bot, press Ctrl+C');
       logger.info('');
+
+      // Mark startup as complete - now respond only to NEW messages
+      this.startupComplete = false;
 
       // Graceful shutdown
       process.on('SIGINT', () => this.stop());
@@ -231,6 +243,7 @@ class DiscordOFBot {
    */
   startDMPolling() {
     this.messageCollectionTimer = new Map(); // Track collection timers per user
+    let firstCheck = true; // Track if this is the first polling check
     
     this.dmPollingInterval = setInterval(async () => {
       try {
@@ -266,12 +279,27 @@ class DiscordOFBot {
           // Process the first unread DM
           if (unreadDMs.length > 0) {
             await this.processDM(unreadDMs[0]);
+            
+            // After first check completes, mark startup as complete
+            // This prevents responding to old history that existed at boot time
+            if (firstCheck) {
+              firstCheck = false;
+              this.startupComplete = true;
+              logger.info('[Startup] First polling check complete - now accepting new messages');
+            }
           }
         } else {
           // Return to friends list if not already there
           if (this.lastPage !== 'friends') {
             await this.browser.navigateToFriendsList();
             this.lastPage = 'friends';
+          }
+          
+          // Mark startup complete if no unread DMs found on first check
+          if (firstCheck) {
+            firstCheck = false;
+            this.startupComplete = true;
+            logger.info('[Startup] First polling check complete (no unread DMs) - now accepting new messages');
           }
         }
       } catch (error) {
@@ -310,6 +338,13 @@ class DiscordOFBot {
       // Get latest article from this polling cycle (should be 1 per extraction)
       const latestArticle = messages[0]; // Only 1 article per extraction now
       if (!latestArticle) {
+        return false;
+      }
+
+      // Check if we already responded to this exact message
+      const lastProcessed = this.conversationManager.getLastMessageId(userId);
+      if (lastProcessed && lastProcessed === latestArticle.content) {
+        logger.debug(`Already responded to "${latestArticle.content}" from ${username}, skipping timer`);
         return false;
       }
 
@@ -355,6 +390,28 @@ class DiscordOFBot {
   async processDM(dm) {
     try {
       let { userId, username } = dm;
+
+      // DURING STARTUP: Just scan and mark messages as processed, don't respond yet
+      // This prevents bot from replying to old history on first boot
+      if (!this.startupComplete) {
+        logger.debug(`Startup mode: Scanning DM from ${username || userId} but not responding yet`);
+        const messages = await this.browser.getMessagesWithRetry(10);
+        
+        // Mark all messages as processed so they won't trigger responses later
+        if (messages.length > 0) {
+          let seenSet = this.lastSeenArticles.get(userId);
+          if (!seenSet) {
+            seenSet = new Set();
+            this.lastSeenArticles.set(userId, seenSet);
+          }
+          
+          for (const msg of messages) {
+            seenSet.add(msg.content);
+          }
+          logger.debug(`[Startup] Marked ${messages.length} messages as seen for ${userId}`);
+        }
+        return; // Don't respond during startup
+      }
 
       // STOP PROCESSING: If OF link already sent to this user, skip
       if (this.closedConversations.has(userId)) {
@@ -557,6 +614,9 @@ class DiscordOFBot {
             `✅ Response sent to ${extractedUsername} (source: ${response.source}, hasOFLink: ${response.hasOFLink})`
           );
           
+          // Track this message as one WE sent (so we don't extract it back later)
+          this.sentMessages.add(response.message);
+          
           // CRITICAL: Mark this user as having received their first reply
           // This enables conversation mode (batching, multiple messages, etc.)
           if (!this.hasRepliedOnce.has(userId)) {
@@ -622,6 +682,14 @@ class DiscordOFBot {
     const timerId = setTimeout(async () => {
       logger.debug(`⏱️  Message collection timeout - processing DM from ${username}`);
       this.messageCollectionTimer.delete(userId);
+      
+      // CRITICAL: Check if we already responded to this user
+      // If responsePending is set, a response is in flight - don't reprocess
+      if (this.responsePending[userId]) {
+        logger.debug(`⏱️  Response already pending for ${username}, skipping collection timer reprocess`);
+        this.articleQueues.delete(userId);
+        return;
+      }
       
       // Combine all accumulated articles
       const accumulatedArticles = this.articleQueues.get(userId) || [];
