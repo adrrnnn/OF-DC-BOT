@@ -227,7 +227,6 @@ if "%choice%"=="1" (
     set /p NEWEMAIL="Enter new Email: "
     node -e "
     const fs = require('fs');
-    const path = require('path');
     try {
         const accounts = JSON.parse(fs.readFileSync('accounts.json', 'utf8'));
         const envContent = fs.readFileSync('.env', 'utf8');
@@ -242,7 +241,7 @@ if "%choice%"=="1" (
             }
         }
         
-        const newEnv = envContent.replace(/DISCORD_EMAIL=.+/, 'DISCORD_EMAIL=!NEWEMAIL!');
+        const newEnv = envContent.replace(/DISCORD_EMAIL=.*/m, 'DISCORD_EMAIL=!NEWEMAIL!');
         fs.writeFileSync('.env', newEnv);
         console.log('[OK] Email updated!');
     } catch (e) {
@@ -270,7 +269,7 @@ if "%choice%"=="2" (
             }
         }
         
-        const newEnv = envContent.replace(/BOT_USERNAME=.+/, 'BOT_USERNAME=!NEWUSERNAME!');
+        const newEnv = envContent.replace(/BOT_USERNAME=.*/m, 'BOT_USERNAME=!NEWUSERNAME!');
         fs.writeFileSync('.env', newEnv);
         console.log('[OK] Username updated!');
     } catch (e) {
@@ -298,7 +297,7 @@ if "%choice%"=="3" (
             }
         }
         
-        const newEnv = envContent.replace(/DISCORD_PASSWORD=.+/, 'DISCORD_PASSWORD=!NEWPASSWORD!');
+        const newEnv = envContent.replace(/DISCORD_PASSWORD=.*/m, 'DISCORD_PASSWORD=!NEWPASSWORD!');
         fs.writeFileSync('.env', newEnv);
         console.log('[OK] Password updated!');
     } catch (e) {
@@ -362,17 +361,17 @@ const fs = require('fs');
 try {
     if (!fs.existsSync('accounts.json')) {
         console.log('[ERROR] No accounts database found');
-        process.exit(1);
+    } else {
+        const accounts = JSON.parse(fs.readFileSync('accounts.json', 'utf8'));
+        if (accounts.accounts.length === 0) {
+            console.log('[ERROR] No accounts saved yet');
+        } else {
+            accounts.accounts.forEach((acc, idx) => {
+                console.log('[' + (idx + 1) + '] ' + acc.username + ' (' + acc.email + ')');
+            });
+            console.log('[0] Back');
+        }
     }
-    const accounts = JSON.parse(fs.readFileSync('accounts.json', 'utf8'));
-    if (accounts.accounts.length === 0) {
-        console.log('[ERROR] No accounts saved yet');
-        process.exit(1);
-    }
-    accounts.accounts.forEach((acc, idx) => {
-        console.log('[' + (idx + 1) + '] ' + acc.username + ' (' + acc.email + ')');
-    });
-    console.log('[0] Back');
 } catch (e) {
     console.error('[ERROR]', e.message);
 }
