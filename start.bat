@@ -367,56 +367,19 @@ echo   All Discord Accounts
 echo ========================================
 echo.
 
-node -e "
-const fs = require('fs');
-try {
-    if (!fs.existsSync('accounts.json')) {
-        console.log('[ERROR] No accounts database found');
-    } else {
-        const accounts = JSON.parse(fs.readFileSync('accounts.json', 'utf8'));
-        if (accounts.accounts.length === 0) {
-            console.log('[ERROR] No accounts saved yet');
-        } else {
-            accounts.accounts.forEach((acc, idx) => {
-                console.log('[' + (idx + 1) + '] ' + acc.username + ' (' + acc.email + ')');
-            });
-            console.log('[0] Back');
-        }
-    }
-} catch (e) {
-    console.error('[ERROR]', e.message);
-}
-"
+node -e "const fs = require('fs'); try { if (fs.existsSync('accounts.json')) { const a = JSON.parse(fs.readFileSync('accounts.json', 'utf8')); a.accounts.forEach((acc, idx) => console.log('[' + (idx+1) + '] ' + acc.username + ' - ' + acc.email)); } } catch(e) { console.log('[ERROR]', e.message); }"
+
 echo.
-set /p choice="Enter choice: "
+echo [0] Back to Account Configuration
+echo.
+set /p choice="Enter account number to switch or 0 to go back: "
 
-if "%choice%"=="0" (
-    goto CONFIGURE_ACCOUNT
-)
+if "%choice%"=="" goto LIST_ACCOUNTS
+if "%choice%"=="0" goto CONFIGURE_ACCOUNT
 
-node -e "
-const fs = require('fs');
-const choiceNum = parseInt('!choice!');
-try {
-    if (!fs.existsSync('accounts.json')) {
-        console.log('[ERROR] No accounts database found');
-    } else {
-        const accounts = JSON.parse(fs.readFileSync('accounts.json', 'utf8'));
-        const acc = accounts.accounts[choiceNum - 1];
-        if (acc) {
-            const env = 'DISCORD_EMAIL=' + acc.email + '\nDISCORD_PASSWORD=' + acc.password + '\nBOT_USERNAME=' + acc.username + '\nOF_LINK=' + acc.ofLink + '\nGEMINI_API_KEY_1=\nGEMINI_API_KEY_2=\nGEMINI_API_KEY_3=\nOPENAI_API_KEY=\nCHECK_DMS_INTERVAL=5000\nRESPONSE_DELAY_MIN=1000\nRESPONSE_DELAY_MAX=3000';
-            fs.writeFileSync('.env', env);
-            accounts.lastActive = acc.email;
-            fs.writeFileSync('accounts.json', JSON.stringify(accounts, null, 2));
-            console.log('[OK] Account switched to: ' + acc.username);
-        } else {
-            console.log('[ERROR] Invalid selection');
-        }
-    }
-} catch (e) {
-    console.error('[ERROR]', e.message);
-}
-"
+node -e "const fs = require('fs'); const num = parseInt('!choice!'); if (!isNaN(num) && num > 0) { try { const a = JSON.parse(fs.readFileSync('accounts.json', 'utf8')); const acc = a.accounts[num-1]; if (acc) { const env = 'DISCORD_EMAIL='+acc.email+'\nDISCORD_PASSWORD='+acc.password+'\nBOT_USERNAME='+acc.username+'\nOF_LINK='+acc.ofLink+'\nGEMINI_API_KEY_1=\nGEMINI_API_KEY_2=\nGEMINI_API_KEY_3=\nOPENAI_API_KEY=\nCHECK_DMS_INTERVAL=5000\nRESPONSE_DELAY_MIN=1000\nRESPONSE_DELAY_MAX=3000'; fs.writeFileSync('.env', env); a.lastActive = acc.email; fs.writeFileSync('accounts.json', JSON.stringify(a, null, 2)); console.log('[OK] Switched to: '+acc.username); } else { console.log('[ERROR] Invalid account number'); } } catch(e) { console.log('[ERROR]', e.message); } } else { console.log('[ERROR] Invalid choice'); }"
+
+echo.
 pause
 goto LIST_ACCOUNTS
 :SELECT_PROFILE
