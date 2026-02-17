@@ -90,6 +90,14 @@ export class ConversationManager {
     return conv ? conv.ofLinkSent : false;
   }
 
+  markPermanentlyClosed(userId) {
+    const conv = this.conversations.get(userId);
+    if (conv) {
+      conv.permanentlyClosed = true;
+      this.saveState();
+    }
+  }
+
   getConversationState(userId) {
     const conv = this.conversations.get(userId);
     

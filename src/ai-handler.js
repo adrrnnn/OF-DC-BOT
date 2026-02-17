@@ -81,6 +81,12 @@ export class AIHandler {
    */
   async generateResponse(userMessage, systemPrompt) {
     try {
+      // SAFEGUARD: Check user message first
+      if (this.isUnderage(userMessage) || this.isIllegalRequest(userMessage)) {
+        logger.warn(`⚠️  Blocked unsafe user message from reaching AI: "${userMessage}"`);
+        return null; // Let message handler deal with it
+      }
+
       // Build natural prompt using training context
       const conversationContext = this.buildConversationContext();
       
@@ -105,6 +111,12 @@ Reply naturally in 1-2 short sentences. Reference what they said specifically.`;
       
       // Use the provider to generate response
       let response = await provider.generateResponse(prompt, systemPrompt);
+      
+      // SAFEGUARD: Check AI response for illegal content
+      if (this.isIllegalResponse(response)) {
+        logger.warn(`⚠️  AI generated unsafe response, rejecting: "${response}"`);
+        return null; // Reject the response
+      }
       
       // Validate response quality - if it's bad, use fallback
       if (!this.isGoodResponse(response, userMessage)) {
@@ -219,6 +231,98 @@ Reply naturally in 1-2 short sentences.`;
       'ooh tell me more 😊'
     ];
     return fallbacks[Math.floor(Math.random() * fallbacks.length)];
+  }
+
+  /**
+   * SAFEGUARD: Detect if user claims to be underage (under 18)
+   */
+  isUnderage(message) {
+    if (!message) return false;
+    const lower = message.toLowerCase();
+    
+    // Check for explicit age claims under 18
+    const underage = /\b(im|i'm|i am|age|years old|yo|year old)\s+(\d{1,2})/i;
+    const match = message.match(underage);
+    
+    if (match) {
+      const age = parseInt(match[2]);
+      if (age < 18) {
+        logger.warn(`Detected underage claim: ${age} years old`);
+        return true;
+      }
+    }
+
+    // Check for direct statements
+    const underageKeywords = [
+      'im 13', 'im 14', 'im 15', 'im 16', 'im 17',
+      "i'm 13", "i'm 14", "i'm 15", "i'm 16", "i'm 17",
+      'age 13', 'age 14', 'age 15', 'age 16', 'age 17',
+      '13 years old', '14 years old', '15 years old', '16 years old', '17 years old',
+      '13 yo', '14 yo', '15 yo', '16 yo', '17 yo',
+      'underage', 'minor', 'i am a minor'
+    ];
+
+    return underageKeywords.some(kw => lower.includes(kw));
+  }
+
+  /**
+   * SAFEGUARD: Detect illegal/harmful user requests
+   */
+  isIllegalRequest(message) {
+    if (!message) return false;
+    const lower = message.toLowerCase();
+
+    // Illegal/harmful keywords
+    const illegalKeywords = [
+      'money transfer',
+      'send money',
+      'bank account',
+      'credit card',
+      'payment method',
+      'prostitute',
+      'escort',
+      'blackmail',
+      'extortion',
+      'threaten',
+      'harm',
+      'violence',
+      'rape',
+      'abuse',
+      'child',
+      'kid',
+      'baby',
+      'minor'
+    ];
+
+    return illegalKeywords.some(kw => lower.includes(kw));
+  }
+
+  /**
+   * SAFEGUARD: Check if AI response contains illegal/harmful content
+   */
+  isIllegalResponse(response) {
+    if (!response) return false;
+    const lower = response.toLowerCase();
+
+    // AI should never mention these things
+    const illegalResponseKeywords = [
+      'money transfer',
+      'send me money',
+      'bank account',
+      'credit card',
+      'payment',
+      'prostitute',
+      'escort service',
+      'blackmail',
+      'extortion',
+      'i will harm',
+      'i will hurt',
+      'violence',
+      'rape',
+      'abuse'
+    ];
+
+    return illegalResponseKeywords.some(kw => lower.includes(kw));
   }
 
   /**

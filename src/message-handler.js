@@ -36,10 +36,57 @@ export class MessageHandler {
     try {
       logger.info(`Message from ${userId}: "${userMessage}"`);
 
+      // SAFEGUARD: Check for underage claims
+      if (this.isUnderage(userMessage)) {
+        logger.warn(`⚠️  UNDERAGE CLAIM DETECTED from ${userId}: "${userMessage}"`);
+        const blockMessage = `im only talking to ppl 18+`;
+        return {
+          userId,
+          message: blockMessage,
+          source: 'safeguard_age',
+          hasOFLink: false,
+          closeChat: true
+        };
+      }
+
+      // SAFEGUARD: Check for illegal/harmful requests
+      if (this.isIllegalRequest(userMessage)) {
+        logger.warn(`⚠️  ILLEGAL/HARMFUL REQUEST from ${userId}: "${userMessage}"`);
+        this.conversationManager.endConversation(userId);
+        return null; // Don't respond to illegal requests
+      }
+
       // CRITICAL: Check if we've already sent the OF link to this user
-      // If yes, CLOSE CHAT - don't respond anymore
+      // If yes, check if they're refusing or permanently blocked
       const conversationData = this.conversationManager.getConversationState(userId);
+      
+      if (conversationData && conversationData.permanentlyClosed) {
+        logger.info(`🚫 User ${userId} permanently blocked - no more responses`);
+        return null; // Permanently ignore them
+      }
+      
       if (conversationData && conversationData.hasOFLink) {
+        // They already got the OF link - check if they're refusing
+        if (this.isRefusingOF(userMessage)) {
+          logger.info(`User ${userId} refusing OF after link sent - sending final goodbye`);
+          const finalMessage = this.getFinalGoodbyeMessage();
+          
+          // Mark as permanently closed - never respond again
+          this.conversationManager.markPermanentlyClosed(userId);
+          
+          const delay = this.getRandomDelay();
+          await new Promise(r => setTimeout(r, delay));
+          
+          return {
+            userId,
+            message: finalMessage,
+            source: 'final_goodbye',
+            hasOFLink: false,
+            closeChat: true
+          };
+        }
+        
+        // They're not refusing, just ignore the message
         logger.info(`🚫 Already sent OF link to ${userId} - IGNORING message, closing chat`);
         return null; // Don't respond at all
       }
@@ -218,6 +265,161 @@ export class MessageHandler {
     ];
     
     return avoidOFKeywords.some(kw => lower.includes(kw));
+  }
+
+  /**
+   * Detect if user is refusing to use OnlyFans after link was sent
+   * Examples: "i dont use OF", "i wont make an account", "no thanks", etc
+   */
+  isRefusingOF(message) {
+    if (!message) return false;
+    const lower = message.toLowerCase();
+    
+    // Keywords that indicate refusal to use OF
+    const refusalKeywords = [
+      "i don't use",
+      "i dont use",
+      "i won't make",
+      "i wont make",
+      "won't make an account",
+      "wont make an account",
+      "not making an account",
+      "not gonna join",
+      "not going to join",
+      "no onlyfans",
+      "no of",
+      "cant afford",
+      "can't afford",
+      "too expensive",
+      "pass on that",
+      "nah im good",
+      "im good",
+      "i'm good",
+      "no thanks",
+      "nope",
+      "not interested",
+      "not really",
+      "not for me",
+      "not my thing",
+      "skip",
+      "never",
+      "not happening"
+    ];
+    
+    return refusalKeywords.some(kw => lower.includes(kw));
+  }
+
+  /**
+   * Get a final goodbye message for users who refuse OF
+   */
+  getFinalGoodbyeMessage() {
+    const messages = [
+      "okay well thats where im at, lmk when you do :p",
+      "no worries babe but thats the only place i do this stuff",
+      "nah im only on OF now honestly",
+      "i know but thats how it is :3",
+      "totally understand but thats the only spot i use",
+      "all good but OF is where its at for me"
+    ];
+    
+    return messages[Math.floor(Math.random() * messages.length)];
+  }
+}
+
+  /**
+   * Detect if user is trying to avoid OF and chat on Discord instead
+   * Examples: "i prefer to talk here", "lets chat on discord", "talk here", etc
+   */
+  isAvoidingOF(message) {
+    if (!message) return false;
+    const lower = message.toLowerCase();
+    
+    // Keywords that indicate user wants to chat on Discord/here instead of OF
+    const avoidOFKeywords = [
+      'prefer to talk here',
+      'prefer to chat here',
+      'talk here',
+      'chat here',
+      'prefer here',
+      'prefer discord',
+      'talk on discord',
+      'chat on discord',
+      'here is better',
+      'like talking here',
+      'like to talk here',
+      'stay here',
+      'just chat here',
+      'just talk here',
+      'dont wanna go',
+      'not going to',
+      'not going there'
+    ];
+    
+    return avoidOFKeywords.some(kw => lower.includes(kw));
+  }
+
+  /**
+   * SAFEGUARD: Detect if user claims to be underage (under 18)
+   */
+  isUnderage(message) {
+    if (!message) return false;
+    const lower = message.toLowerCase();
+    
+    // Check for explicit age claims under 18
+    const underage = /\b(im|i'm|i am|age|years old|yo|year old)\s+(\d{1,2})/i;
+    const match = message.match(underage);
+    
+    if (match) {
+      const age = parseInt(match[2]);
+      if (age < 18) {
+        logger.warn(`Detected underage claim: ${age} years old`);
+        return true;
+      }
+    }
+
+    // Check for direct statements
+    const underageKeywords = [
+      'im 13', 'im 14', 'im 15', 'im 16', 'im 17',
+      "i'm 13", "i'm 14", "i'm 15", "i'm 16", "i'm 17",
+      'age 13', 'age 14', 'age 15', 'age 16', 'age 17',
+      '13 years old', '14 years old', '15 years old', '16 years old', '17 years old',
+      '13 yo', '14 yo', '15 yo', '16 yo', '17 yo',
+      'underage', 'minor', 'i am a minor'
+    ];
+
+    return underageKeywords.some(kw => lower.includes(kw));
+  }
+
+  /**
+   * SAFEGUARD: Detect illegal/harmful requests
+   */
+  isIllegalRequest(message) {
+    if (!message) return false;
+    const lower = message.toLowerCase();
+
+    // Illegal/harmful keywords
+    const illegalKeywords = [
+      'money transfer',
+      'send money',
+      'bank account',
+      'credit card',
+      'payment method',
+      'prostitute',
+      'escort',
+      'blackmail',
+      'extortion',
+      'threaten',
+      'harm',
+      'violence',
+      'rape',
+      'abuse',
+      'child',
+      'kid',
+      'baby',
+      'minor'
+    ];
+
+    return illegalKeywords.some(kw => lower.includes(kw));
   }
 }
 
