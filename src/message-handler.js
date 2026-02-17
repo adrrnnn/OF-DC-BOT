@@ -324,7 +324,7 @@ export class MessageHandler {
     
     return messages[Math.floor(Math.random() * messages.length)];
   }
-}
+
 
   /**
    * Detect if user is trying to avoid OF and chat on Discord instead

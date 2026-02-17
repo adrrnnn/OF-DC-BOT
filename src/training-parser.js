@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { logger } from './logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -17,7 +18,7 @@ export class TrainingDataParser {
     const conversations = [];
 
     if (!fs.existsSync(trainingDir)) {
-      console.warn('⚠️  Training data directory not found');
+      logger.warn('Training data directory not found');
       return conversations;
     }
 
@@ -142,19 +143,19 @@ export class TrainingDataParser {
     const configPath = path.join(process.cwd(), 'config', 'templates.json');
     const data = { templates };
     fs.writeFileSync(configPath, JSON.stringify(data, null, 2));
-    console.log(`✅ Saved ${templates.length} templates to ${configPath}`);
+    logger.info(`Saved ${templates.length} templates to config`);
   }
 
   /**
    * Initialize training data
    */
   static initialize() {
-    console.log('📚 Parsing training data...');
+    logger.info('Parsing training data...');
     const conversations = this.parseRedditData();
-    console.log(`   Found ${conversations.length} conversations`);
+    logger.info(`Found ${conversations.length} conversations`);
 
     const intents = this.extractIntents(conversations);
-    console.log(`   Extracted ${Object.keys(intents).length} intent categories`);
+    logger.info(`Extracted ${Object.keys(intents).length} intent categories`);
 
     const templates = this.generateTemplates(intents);
     this.saveTemplates(templates);

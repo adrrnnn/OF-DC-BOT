@@ -97,7 +97,7 @@ REMEMBER: You are ${name}, ${age}, from ${location}. Answer their questions dire
   loadTemplates() {
     const templatesPath = path.join(process.cwd(), 'config', 'templates.json');
     if (!fs.existsSync(templatesPath)) {
-      console.warn('templates.json not found');
+      logger.warn('templates.json not found');
       return { templates: [] };
     }
 
@@ -105,7 +105,7 @@ REMEMBER: You are ${name}, ${age}, from ${location}. Answer their questions dire
       const data = fs.readFileSync(templatesPath, 'utf8');
       return JSON.parse(data);
     } catch (error) {
-      console.error('Failed to load templates:', error.message);
+      logger.error('Failed to load templates: ' + error.message);
       return { templates: [] };
     }
   }
@@ -126,12 +126,12 @@ REMEMBER: You are ${name}, ${age}, from ${location}. Answer their questions dire
           const data = fs.readFileSync(filePath, 'utf8');
           return JSON.parse(data);
         } catch (error) {
-          console.error(`Failed to load training data from ${filePath}:`, error.message);
+          logger.error(`Failed to load training data from ${filePath}: ` + error.message);
         }
       }
     }
 
-    console.warn('Training data not found');
+    logger.warn('Training data not found');
     return { conversation_examples: [] };
   }
 
