@@ -121,8 +121,6 @@ function viewProfiles() {
             }
             
             console.log('');
-            console.log('Select a profile by entering its ID:');
-            console.log('');
             data.profiles.forEach(p => {
                 const marker = activeProfile && p.id === activeProfile.id ? ' ✓' : '';
                 console.log(`[${p.id}] ${p.name} | Age: ${p.age} | Location: ${p.location} | Race: ${p.race}${marker}`);
