@@ -98,22 +98,16 @@ set /p EMAIL="Enter Discord Email: "
 set /p PASSWORD="Enter Discord Password: "
 set /p OF_LINK="Enter OnlyFans Link: "
 
-REM Create accounts.json with escape sequences
-for /f %%A in ('copy /Z "%~f0" nul') do set "NL=%%A"
-
-REM Save to accounts.json database
+REM Save to accounts.json database (direct array format)
 node -e "
 const fs = require('fs');
-const accounts = { 
-  accounts: [{ 
-    username: '!USERNAME!', 
-    email: '!EMAIL!', 
-    password: '!PASSWORD!', 
-    ofLink: '!OF_LINK!' 
-  }],
-  lastActive: '!EMAIL!'
-};
-fs.writeFileSync('accounts.json', JSON.stringify(accounts, null, 2));
+const accounts = [{ 
+  username: '!USERNAME!', 
+  email: '!EMAIL!', 
+  password: '!PASSWORD!', 
+  ofLink: '!OF_LINK!' 
+}];
+fs.writeFileSync('config/accounts.json', JSON.stringify(accounts, null, 2));
 "
 
 REM Create .env with this account
@@ -187,7 +181,7 @@ goto CONFIGURE_ACCOUNT
 cls
 echo.
 echo ========================================
-echo   Current Account (Active)
+echo   View Current Account
 echo ========================================
 echo.
 for /f "tokens=2 delims==" %%a in ('type .env ^| find "DISCORD_EMAIL"') do set EMAIL=%%a
@@ -195,7 +189,7 @@ for /f "tokens=2 delims==" %%a in ('type .env ^| find "BOT_USERNAME"') do set US
 
 if "!USERNAME!"=="" set USERNAME=Not set
 
-echo Email: %EMAIL%
+echo Email:    %EMAIL%
 echo Username: %USERNAME%
 echo.
 echo [1] Edit This Account
@@ -216,9 +210,9 @@ echo ========================================
 echo   Edit Current Account
 echo ========================================
 echo.
-echo [1] Email
-echo [2] Username
-echo [3] Password
+echo [1] Change Email
+echo [2] Change Username
+echo [3] Change Password
 echo [4] Back
 echo.
 set /p choice="Enter choice (1-4): "
@@ -234,16 +228,17 @@ if "%choice%"=="1" (
     node -e "
     const fs = require('fs');
     try {
-        const accounts = JSON.parse(fs.readFileSync('accounts.json', 'utf8'));
+        const data = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8'));
+        const accounts = Array.isArray(data) ? data : (data.accounts || []);
         const envContent = fs.readFileSync('.env', 'utf8');
         const currentEmailMatch = envContent.match(/DISCORD_EMAIL=(.+)/);
         const currentEmail = currentEmailMatch ? currentEmailMatch[1].trim() : null;
         
         if (currentEmail) {
-            const idx = accounts.accounts.findIndex(a => a.email === currentEmail);
+            const idx = accounts.findIndex(a => a.email === currentEmail);
             if (idx !== -1) {
-                accounts.accounts[idx].email = '!NEWEMAIL!';
-                fs.writeFileSync('accounts.json', JSON.stringify(accounts, null, 2));
+                accounts[idx].email = '!NEWEMAIL!';
+                fs.writeFileSync('config/accounts.json', JSON.stringify(accounts, null, 2));
             }
         }
         
@@ -264,16 +259,17 @@ if "%choice%"=="2" (
     node -e "
     const fs = require('fs');
     try {
-        const accounts = JSON.parse(fs.readFileSync('accounts.json', 'utf8'));
+        const data = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8'));
+        const accounts = Array.isArray(data) ? data : (data.accounts || []);
         const envContent = fs.readFileSync('.env', 'utf8');
         const currentEmailMatch = envContent.match(/DISCORD_EMAIL=(.+)/);
         const currentEmail = currentEmailMatch ? currentEmailMatch[1].trim() : null;
         
         if (currentEmail) {
-            const idx = accounts.accounts.findIndex(a => a.email === currentEmail);
+            const idx = accounts.findIndex(a => a.email === currentEmail);
             if (idx !== -1) {
-                accounts.accounts[idx].username = '!NEWUSERNAME!';
-                fs.writeFileSync('accounts.json', JSON.stringify(accounts, null, 2));
+                accounts[idx].username = '!NEWUSERNAME!';
+                fs.writeFileSync('config/accounts.json', JSON.stringify(accounts, null, 2));
             }
         }
         
@@ -294,16 +290,17 @@ if "%choice%"=="3" (
     node -e "
     const fs = require('fs');
     try {
-        const accounts = JSON.parse(fs.readFileSync('accounts.json', 'utf8'));
+        const data = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8'));
+        const accounts = Array.isArray(data) ? data : (data.accounts || []);
         const envContent = fs.readFileSync('.env', 'utf8');
         const currentEmailMatch = envContent.match(/DISCORD_EMAIL=(.+)/);
         const currentEmail = currentEmailMatch ? currentEmailMatch[1].trim() : null;
         
         if (currentEmail) {
-            const idx = accounts.accounts.findIndex(a => a.email === currentEmail);
+            const idx = accounts.findIndex(a => a.email === currentEmail);
             if (idx !== -1) {
-                accounts.accounts[idx].password = '!NEWPASSWORD!';
-                fs.writeFileSync('accounts.json', JSON.stringify(accounts, null, 2));
+                accounts[idx].password = '!NEWPASSWORD!';
+                fs.writeFileSync('config/accounts.json', JSON.stringify(accounts, null, 2));
             }
         }
         
@@ -327,7 +324,7 @@ goto EDIT_CURRENT
 cls
 echo.
 echo ========================================
-echo   Add New Account
+echo   Add New Discord Account
 echo ========================================
 echo.
 set /p USERNAME="Enter Discord Username: "
@@ -338,17 +335,18 @@ set /p OF_LINK="Enter OnlyFans Link: "
 node -e "
 const fs = require('fs');
 try {
-    let accounts = { accounts: [], lastActive: null };
-    if (fs.existsSync('accounts.json')) {
-        accounts = JSON.parse(fs.readFileSync('accounts.json', 'utf8'));
+    let accounts = [];
+    if (fs.existsSync('config/accounts.json')) {
+        const data = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8'));
+        accounts = Array.isArray(data) ? data : (data.accounts || []);
     }
-    accounts.accounts.push({ 
+    accounts.push({ 
         username: '!USERNAME!', 
         email: '!EMAIL!', 
         password: '!PASSWORD!', 
         ofLink: '!OF_LINK!' 
     });
-    fs.writeFileSync('accounts.json', JSON.stringify(accounts, null, 2));
+    fs.writeFileSync('config/accounts.json', JSON.stringify(accounts, null, 2));
     console.log('[OK] Account added to database!');
 } catch (e) {
     console.error('[ERROR]', e.message);
@@ -363,21 +361,21 @@ goto CONFIGURE_ACCOUNT
 cls
 echo.
 echo ========================================
-echo   All Discord Accounts
+echo   Select Discord Account
 echo ========================================
 echo.
 
-node -e "const fs = require('fs'); try { if (fs.existsSync('accounts.json')) { const a = JSON.parse(fs.readFileSync('accounts.json', 'utf8')); a.accounts.forEach((acc, idx) => console.log('[' + (idx+1) + '] ' + acc.username + ' - ' + acc.email)); } } catch(e) { console.log('[ERROR]', e.message); }"
+node -e "const fs = require('fs'); if (fs.existsSync('config/accounts.json')) { try { const a = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8')); const accounts = Array.isArray(a) ? a : (a.accounts || []); if (accounts && accounts.length > 0) { accounts.forEach((acc, i) => console.log('[' + (i+1) + '] ' + (acc.username || 'Unknown') + ' (' + (acc.email || 'No email') + ')')); } else { console.log('No accounts saved'); } } catch(e) { console.log('Error:', e.message); } } else { console.log('No accounts database found'); }"
 
 echo.
 echo [0] Back to Account Configuration
 echo.
-set /p choice="Enter account number to switch or 0 to go back: "
+set /p choice="Enter account number or 0 to go back: "
 
 if "%choice%"=="" goto LIST_ACCOUNTS
 if "%choice%"=="0" goto CONFIGURE_ACCOUNT
 
-node -e "const fs = require('fs'); const num = parseInt('!choice!'); if (!isNaN(num) && num > 0) { try { const a = JSON.parse(fs.readFileSync('accounts.json', 'utf8')); const acc = a.accounts[num-1]; if (acc) { const env = 'DISCORD_EMAIL='+acc.email+'\nDISCORD_PASSWORD='+acc.password+'\nBOT_USERNAME='+acc.username+'\nOF_LINK='+acc.ofLink+'\nGEMINI_API_KEY_1=\nGEMINI_API_KEY_2=\nGEMINI_API_KEY_3=\nOPENAI_API_KEY=\nCHECK_DMS_INTERVAL=5000\nRESPONSE_DELAY_MIN=1000\nRESPONSE_DELAY_MAX=3000'; fs.writeFileSync('.env', env); a.lastActive = acc.email; fs.writeFileSync('accounts.json', JSON.stringify(a, null, 2)); console.log('[OK] Switched to: '+acc.username); } else { console.log('[ERROR] Invalid account number'); } } catch(e) { console.log('[ERROR]', e.message); } } else { console.log('[ERROR] Invalid choice'); }"
+node -e "const fs = require('fs'); const num = parseInt('!choice!'); if (num > 0 && fs.existsSync('config/accounts.json')) { try { const a = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8')); const accounts = Array.isArray(a) ? a : (a.accounts || []); const acc = accounts[num-1]; if (acc) { const env = 'DISCORD_EMAIL='+(acc.email||'')+'\nDISCORD_PASSWORD='+(acc.password||'')+'\nBOT_USERNAME='+(acc.username||'')+'\nOF_LINK='+(acc.ofLink||'')+'\nGEMINI_API_KEY_1=\nGEMINI_API_KEY_2=\nGEMINI_API_KEY_3=\nOPENAI_API_KEY=\nCHECK_DMS_INTERVAL=5000\nRESPONSE_DELAY_MIN=1000\nRESPONSE_DELAY_MAX=3000'; fs.writeFileSync('.env', env); console.log('[OK] Switched to: '+(acc.username||acc.email)); } else { console.log('[ERROR] Invalid account number'); } } catch(e) { console.log('[ERROR]', e.message); } } else { console.log('[ERROR] Invalid choice'); }"
 
 echo.
 pause
@@ -386,7 +384,7 @@ goto LIST_ACCOUNTS
 cls
 echo.
 echo ========================================
-echo      Profile Management
+echo   Profile Management
 echo ========================================
 echo.
 echo [1] Select Profile
@@ -409,9 +407,9 @@ goto SELECT_PROFILE
 cls
 echo.
 echo ========================================
-echo   Select Profile
+echo   Select Active Profile
 echo ========================================
-echo.
+echo..
 
 node scripts\profile-manager.js view
 if %ERRORLEVEL% NEQ 0 (
@@ -522,16 +520,17 @@ if "%NEW_OF_LINK%"=="" goto MAIN_MENU
 node -e "
 const fs = require('fs');
 try {
-    const accounts = JSON.parse(fs.readFileSync('accounts.json', 'utf8'));
+    const data = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8'));
+    const accounts = Array.isArray(data) ? data : (data.accounts || []);
     const envContent = fs.readFileSync('.env', 'utf8');
     const currentEmailMatch = envContent.match(/DISCORD_EMAIL=(.+)/);
     const currentEmail = currentEmailMatch ? currentEmailMatch[1].trim() : null;
     
     if (currentEmail) {
-        const idx = accounts.accounts.findIndex(a => a.email === currentEmail);
+        const idx = accounts.findIndex(a => a.email === currentEmail);
         if (idx !== -1) {
-            accounts.accounts[idx].ofLink = '!NEW_OF_LINK!';
-            fs.writeFileSync('accounts.json', JSON.stringify(accounts, null, 2));
+            accounts[idx].ofLink = '!NEW_OF_LINK!';
+            fs.writeFileSync('config/accounts.json', JSON.stringify(accounts, null, 2));
         }
     }
     
