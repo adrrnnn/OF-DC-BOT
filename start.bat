@@ -410,6 +410,31 @@ goto LIST_ACCOUNTS
 cls
 echo.
 echo ========================================
+echo      Profile Management
+echo ========================================
+echo.
+echo [1] Select Profile
+echo [2] Add New Profile
+echo [3] Delete Profile
+echo [4] View All Profiles
+echo [5] Back to Main Menu
+echo.
+set /p CHOICE="Enter choice (1-5): "
+
+if "%CHOICE%"=="1" goto SELECT_PROFILE_ID
+if "%CHOICE%"=="2" goto ADD_NEW_PROFILE
+if "%CHOICE%"=="3" goto DELETE_PROFILE_MENU
+if "%CHOICE%"=="4" goto VIEW_PROFILE_DETAILS
+if "%CHOICE%"=="5" goto MAIN_MENU
+
+echo Invalid choice. Try again.
+pause
+goto SELECT_PROFILE
+
+:SELECT_PROFILE_ID
+cls
+echo.
+echo ========================================
 echo   Select Profile
 echo ========================================
 echo.
@@ -418,49 +443,28 @@ node scripts\profile-manager.js view
 if %ERRORLEVEL% NEQ 0 (
     echo [ERROR] Failed to load profiles
     pause
+    goto SELECT_PROFILE
+)
+
+echo.
+set /p PROFILE_ID="Enter profile ID (or press Enter to go back): "
+
+if "%PROFILE_ID%"=="" goto SELECT_PROFILE
+
+node scripts\profile-manager.js setactive %PROFILE_ID%
+if %ERRORLEVEL% EQU 0 (
+    echo.
+    echo Profile activated successfully!
+    echo.
+    pause
     goto MAIN_MENU
+) else (
+    echo.
+    echo [ERROR] Invalid profile ID
+    echo.
+    pause
+    goto SELECT_PROFILE_ID
 )
-
-echo.
-echo ========================================
-echo          Profile Management
-echo ========================================
-echo [1-9] Select Profile by ID
-echo [V]   View Profile Details
-echo [A]   Add New Profile
-echo [D]   Delete Profile
-echo [B]   Back to Main Menu
-echo.
-set /p CHOICE="Enter choice: "
-
-if /I "%CHOICE%"=="B" goto MAIN_MENU
-if /I "%CHOICE%"=="A" goto ADD_NEW_PROFILE
-if /I "%CHOICE%"=="D" goto DELETE_PROFILE_MENU
-if /I "%CHOICE%"=="V" goto VIEW_PROFILE_DETAILS
-
-REM If numeric (1-9), treat as profile ID
-for /L %%i in (1,1,9) do (
-    if "%CHOICE%"=="%%i" (
-        node scripts\profile-manager.js setactive %CHOICE%
-        if %ERRORLEVEL% EQU 0 (
-            echo.
-            echo Profile activated successfully!
-            echo.
-            pause
-            goto MAIN_MENU
-        ) else (
-            echo.
-            echo [ERROR] Invalid profile ID
-            echo.
-            pause
-            goto SELECT_PROFILE
-        )
-    )
-)
-
-echo Invalid choice. Try again.
-pause
-goto SELECT_PROFILE
 
 :ADD_NEW_PROFILE
 cls
@@ -534,13 +538,17 @@ if %ERRORLEVEL% EQU 0 (
 cls
 echo.
 echo ========================================
-echo   View Profile Details
+echo     View All Profiles
 echo ========================================
 echo.
 
 node scripts\profile-manager.js view
-echo.
-echo ^(View above to see all available profiles^)
+if %ERRORLEVEL% NEQ 0 (
+    echo [ERROR] Failed to load profiles
+    pause
+    goto SELECT_PROFILE
+)
+
 echo.
 pause
 goto SELECT_PROFILE
