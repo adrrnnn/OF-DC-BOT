@@ -81,6 +81,7 @@ export class ConversationManager {
     const conv = this.conversations.get(userId);
     if (conv) {
       conv.ofLinkSent = true;
+      logger.info(`📤 OF LINK SENT to ${userId} - Conversation status: PREPARING TO CLOSE (awaiting user response or rejection)`);
       this.saveState();
     }
   }
@@ -94,6 +95,7 @@ export class ConversationManager {
     const conv = this.conversations.get(userId);
     if (conv) {
       conv.permanentlyClosed = true;
+      logger.info(`🔒 CONVERSATION PERMANENTLY CLOSED for ${userId} - No more responses will be sent`);
       this.saveState();
     }
   }

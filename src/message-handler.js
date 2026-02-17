@@ -68,8 +68,10 @@ export class MessageHandler {
       if (conversationData && conversationData.hasOFLink) {
         // They already got the OF link - check if they're refusing
         if (this.isRefusingOF(userMessage)) {
-          logger.info(`User ${userId} refusing OF after link sent - sending final goodbye`);
+          logger.info(`👋 REFUSAL DETECTED from ${userId}: "${userMessage.substring(0, 50)}..."`);
+          logger.info(`User refusing OF after link sent - sending LAST RESPONSE before closing`);
           const finalMessage = this.getFinalGoodbyeMessage();
+          logger.info(`Final goodbye message: "${finalMessage}"`);
           
           // Mark as permanently closed - never respond again
           this.conversationManager.markPermanentlyClosed(userId);
@@ -87,7 +89,7 @@ export class MessageHandler {
         }
         
         // They're not refusing, just ignore the message
-        logger.info(`🚫 Already sent OF link to ${userId} - IGNORING message, closing chat`);
+        logger.info(`⏭️  OF link already sent to ${userId} - User still replying but not refusing - IGNORING (conversation closing)`);
         return null; // Don't respond at all
       }
 
@@ -102,7 +104,8 @@ export class MessageHandler {
 
       // Check if user is trying to chat on Discord instead of OF - REDIRECT AGGRESSIVELY
       if (this.isAvoidingOF(userMessage)) {
-        logger.info(`User ${userId} trying to avoid OF - sending aggressive redirect`);
+        // Aggressive redirect - they're trying to avoid OF
+        logger.info(`User ${userId} trying to avoid OF - sending aggressive redirect (OF link trigger)`);
         const ofLink = process.env.OF_LINK;
         const redirectMessage = `nah baby all the fun stuff is on my OF hehe\nits free to sub :3\n${ofLink}\nlmk when u do ok? <33`;
         
@@ -150,13 +153,13 @@ export class MessageHandler {
         // Check if user message contains sexual content keywords
         if (this.templateMatcher.isSexualContent(userMessage)) {
           shouldSendLink = true;
-          logger.info('Sexual content detected - should send OF link');
+          logger.info(`🔥 Sexual/explicit content detected from ${userId} - OF link trigger activated`);
         }
         
         // Check if AI response mentions OF/OnlyFans
         if (response && this.mentionsOnlyFans(response)) {
           shouldSendLink = true;
-          logger.info('AI response mentions OnlyFans - should send OF link');
+          logger.info(`🔗 AI response mentions OnlyFans for ${userId} - OF link trigger activated`);
         }
       }
 
@@ -172,7 +175,8 @@ export class MessageHandler {
         // The conversation record must persist so hasOFLinkBeenSent() can find it on bot restart
         this.conversationManager.markOFLinkSent(userId);
         closeChat = true;
-        logger.info('OF link appended to response - CLOSING CHAT');
+        logger.info(`📨 SENDING OF LINK MESSAGE for ${userId}`);
+        logger.info(`Status: CONVERSATION PREPARING TO CLOSE - awaiting user acceptance or refusal`);
       }
 
       // Human-like delay before responding
@@ -323,103 +327,6 @@ export class MessageHandler {
     ];
     
     return messages[Math.floor(Math.random() * messages.length)];
-  }
-
-
-  /**
-   * Detect if user is trying to avoid OF and chat on Discord instead
-   * Examples: "i prefer to talk here", "lets chat on discord", "talk here", etc
-   */
-  isAvoidingOF(message) {
-    if (!message) return false;
-    const lower = message.toLowerCase();
-    
-    // Keywords that indicate user wants to chat on Discord/here instead of OF
-    const avoidOFKeywords = [
-      'prefer to talk here',
-      'prefer to chat here',
-      'talk here',
-      'chat here',
-      'prefer here',
-      'prefer discord',
-      'talk on discord',
-      'chat on discord',
-      'here is better',
-      'like talking here',
-      'like to talk here',
-      'stay here',
-      'just chat here',
-      'just talk here',
-      'dont wanna go',
-      'not going to',
-      'not going there'
-    ];
-    
-    return avoidOFKeywords.some(kw => lower.includes(kw));
-  }
-
-  /**
-   * SAFEGUARD: Detect if user claims to be underage (under 18)
-   */
-  isUnderage(message) {
-    if (!message) return false;
-    const lower = message.toLowerCase();
-    
-    // Check for explicit age claims under 18
-    const underage = /\b(im|i'm|i am|age|years old|yo|year old)\s+(\d{1,2})/i;
-    const match = message.match(underage);
-    
-    if (match) {
-      const age = parseInt(match[2]);
-      if (age < 18) {
-        logger.warn(`Detected underage claim: ${age} years old`);
-        return true;
-      }
-    }
-
-    // Check for direct statements
-    const underageKeywords = [
-      'im 13', 'im 14', 'im 15', 'im 16', 'im 17',
-      "i'm 13", "i'm 14", "i'm 15", "i'm 16", "i'm 17",
-      'age 13', 'age 14', 'age 15', 'age 16', 'age 17',
-      '13 years old', '14 years old', '15 years old', '16 years old', '17 years old',
-      '13 yo', '14 yo', '15 yo', '16 yo', '17 yo',
-      'underage', 'minor', 'i am a minor'
-    ];
-
-    return underageKeywords.some(kw => lower.includes(kw));
-  }
-
-  /**
-   * SAFEGUARD: Detect illegal/harmful requests
-   */
-  isIllegalRequest(message) {
-    if (!message) return false;
-    const lower = message.toLowerCase();
-
-    // Illegal/harmful keywords
-    const illegalKeywords = [
-      'money transfer',
-      'send money',
-      'bank account',
-      'credit card',
-      'payment method',
-      'prostitute',
-      'escort',
-      'blackmail',
-      'extortion',
-      'threaten',
-      'harm',
-      'violence',
-      'rape',
-      'abuse',
-      'child',
-      'kid',
-      'baby',
-      'minor'
-    ];
-
-    return illegalKeywords.some(kw => lower.includes(kw));
   }
 }
 
