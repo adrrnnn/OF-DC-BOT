@@ -330,7 +330,7 @@ class DiscordOFBot {
       }
 
       // Get messages (with retry for startup unread messages)
-      const messages = await this.browser.getMessagesWithRetry();
+      const messages = await this.browser.getMessagesWithRetry(1, 10, this.browser.botUsername, this.sentMessages);
       if (messages.length === 0) {
         return false;
       }
@@ -395,7 +395,7 @@ class DiscordOFBot {
       // This prevents bot from replying to old history on first boot
       if (!this.startupComplete) {
         logger.debug(`Startup mode: Scanning DM from ${username || userId} but not responding yet`);
-        const messages = await this.browser.getMessagesWithRetry(10);
+        const messages = await this.browser.getMessagesWithRetry(10, 10, this.browser.botUsername, this.sentMessages);
         
         // Mark all messages as processed so they won't trigger responses later
         if (messages.length > 0) {
@@ -421,7 +421,7 @@ class DiscordOFBot {
 
       // If username missing (happens when continuing conversation), extract from latest message
       if (!username && userId) {
-        const messages = await this.browser.getMessagesWithRetry();
+        const messages = await this.browser.getMessagesWithRetry(1, 10, this.browser.botUsername, this.sentMessages);
         if (messages.length > 0) {
           const userMsg = messages.find(m => m.author && m.author !== this.browser.botUsername && m.author !== 'You');
           username = userMsg?.author || `user_${userId.substring(0, 8)}`;
@@ -457,7 +457,7 @@ class DiscordOFBot {
         logger.debug(`Using pending combined message: "${latestUserMessage.content}"`);
       } else {
         // Fallback: Extract messages normally (for first message or direct calls)
-        const messages = await this.browser.getMessagesWithRetry();
+        const messages = await this.browser.getMessagesWithRetry(1, 10, this.browser.botUsername, this.sentMessages);
         if (messages.length === 0) {
           logger.warn(`No messages found in DM with ${username}`);
           this.inConversationWith = null;

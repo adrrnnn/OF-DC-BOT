@@ -444,11 +444,11 @@ export class BrowserController {
    * Get messages with retry logic for reliable extraction on fresh DM opens
    * CRITICAL: Retries up to 10 times if extraction fails, to ensure startup unread messages are captured
    */
-  async getMessagesWithRetry(limit = 1, maxRetries = 10) {
+  async getMessagesWithRetry(limit = 1, maxRetries = 10, botUsername = null, sentMessages = null) {
     let lastResult = [];
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      const messages = await this.getMessages(limit);
+      const messages = await this.getMessages(limit, botUsername, sentMessages);
       
       if (messages.length > 0) {
         // Success! Return immediately
@@ -472,11 +472,11 @@ export class BrowserController {
   /**
    * Get messages from current DM
    */
-  async getMessages(limit = 1) {
+  async getMessages(limit = 1, botUsername = null, sentMessages = null) {
     try {
       logger.debug('Attempting to extract messages from DOM...');
       
-      const extractionResult = await this.page.evaluate((limit) => {
+      const extractionResult = await this.page.evaluate((limit, botUsername, sentMessages) => {
         const msgs = [];
         const debug = {
           articlesFound: 0,
@@ -552,8 +552,8 @@ export class BrowserController {
             // Only add if there's actual content (message text)
             // Author validation happens in processDM
             if (content && content.length > 1) {
-              // Skip bot messages
-              if (author && author.toLowerCase() === 'margaret_1993.gm_18743') {
+              // Skip bot messages by username
+              if (botUsername && author && author.toLowerCase() === botUsername.toLowerCase()) {
                 debug.errors.push('Message is from bot, skipping');
                 processedCount++;
                 continue;
@@ -566,8 +566,8 @@ export class BrowserController {
               // Skip messages that WE (the bot) just sent
               // These can come back with author="dm_user" when we lose author attribution
               // Must check BOTH the normalized version AND the raw content
-              if (this.bot && this.bot.sentMessages) {
-                if (this.bot.sentMessages.has(content) || this.bot.sentMessages.has(normalizedContent)) {
+              if (sentMessages && Array.isArray(sentMessages) && sentMessages.length > 0) {
+                if (sentMessages.includes(content) || sentMessages.includes(normalizedContent)) {
                   debug.errors.push('Message is from bot (in sentMessages), skipping');
                   processedCount++;
                   continue;
@@ -597,7 +597,7 @@ export class BrowserController {
         }
 
         return { messages: msgs, debug };
-      }, limit);
+      }, limit, botUsername, sentMessages ? Array.from(sentMessages) : []);
       
       logger.debug(`Extraction result: articles=${extractionResult.debug.articlesFound}, extracted=${extractionResult.debug.messagesExtracted}, errors=${extractionResult.debug.errors.join('; ')}`);
 
