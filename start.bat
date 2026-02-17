@@ -416,16 +416,14 @@ echo.
 echo [1] Select Profile
 echo [2] Add New Profile
 echo [3] Delete Profile
-echo [4] View All Profiles
-echo [5] Back to Main Menu
+echo [4] Back to Main Menu
 echo.
-set /p CHOICE="Enter choice (1-5): "
+set /p CHOICE="Enter choice (1-4): "
 
 if "%CHOICE%"=="1" goto SELECT_PROFILE_ID
 if "%CHOICE%"=="2" goto ADD_NEW_PROFILE
 if "%CHOICE%"=="3" goto DELETE_PROFILE_MENU
-if "%CHOICE%"=="4" goto VIEW_PROFILE_DETAILS
-if "%CHOICE%"=="5" goto MAIN_MENU
+if "%CHOICE%"=="4" goto MAIN_MENU
 
 echo Invalid choice. Try again.
 pause
@@ -533,25 +531,6 @@ if %ERRORLEVEL% EQU 0 (
     pause
     goto DELETE_PROFILE_MENU
 )
-
-:VIEW_PROFILE_DETAILS
-cls
-echo.
-echo ========================================
-echo     View All Profiles
-echo ========================================
-echo.
-
-node scripts\profile-manager.js view
-if %ERRORLEVEL% NEQ 0 (
-    echo [ERROR] Failed to load profiles
-    pause
-    goto SELECT_PROFILE
-)
-
-echo.
-pause
-goto SELECT_PROFILE
 :CHANGE_OF_LINK
 cls
 echo.
