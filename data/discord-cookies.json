@@ -1,7 +1,7 @@
 [
   {
     "name": "_cfuvid",
-    "value": "RXoEYQxXBdyvkyMS13xjJs1nNeJapHGw4O9FIAvQpug-1771354432.7636704-1.0.1.1-B92aLNPARXet2eT_lfJs5yVdnD61Rtn8pDhgpIa_Ao0",
+    "value": "6mUlswe4cq1RFg9VIkWXwXGNBUStnmEJVcZYs4Jt0og-1771354719.7022831-1.0.1.1-Kct7BvDJi8rOVt4c8R8PByasX_dd9ZwwVYjzKXjC2KY",
     "domain": ".discord.com",
     "path": "/",
     "expires": -1,
@@ -29,11 +29,27 @@
     "sourcePort": 443
   },
   {
+    "name": "cf_clearance",
+    "value": "dnbG7Bwec.l88Y96k1M_5eAxMzqlBnqAVkyIrPndHMs-1771354710-1.2.1.1-Vj8NuNB25R.0BOVrRLEqNC.4PwNIXP2qrxyUHQ42B7tnPOVNy3xAcF50d5Po1iGbkNvWUTgqnozs2A90cg0u3EpsNF9g8Dx270dA0.6ngEzArjAWnubS2q00wbwLK8BboK.e7X.sm.MlprgdIHgO0tUdmWZ_NRJvDaqMAx2Hn0wTsmLo1al_55Ci6QP.BI5maOcQwL7OGu0kgz6_3sIHQ1Vz9Tuei_uzoPLEHU5SuiM",
+    "domain": ".discord.com",
+    "path": "/",
+    "expires": 1802890709.480046,
+    "size": 310,
+    "httpOnly": true,
+    "secure": true,
+    "session": false,
+    "sameSite": "None",
+    "sameParty": false,
+    "sourceScheme": "Secure",
+    "sourcePort": 443,
+    "partitionKey": "https://discord.com"
+  },
+  {
     "name": "__sdcfduid",
-    "value": "f7e66b810c3111f191b73738a23af66438c8391a7eaf43d24bed5f9cf4dd742dd537c8c9ec3c442be7cbefb4756def14",
+    "value": "a4b3a2110c3211f1ba47cb9855f64d34c3317a4fd985cbfefa3a3ea07011b73076312183f17e3588075b3158a368251d",
     "domain": "discord.com",
     "path": "/",
-    "expires": 1805914417.047299,
+    "expires": 1805914706.947684,
     "size": 106,
     "httpOnly": true,
     "secure": true,
@@ -45,10 +61,10 @@
   },
   {
     "name": "__dcfduid",
-    "value": "f7e66b800c3111f191b73738a23af664",
+    "value": "a4b3a2100c3211f1ba47cb9855f64d34",
     "domain": "discord.com",
     "path": "/",
-    "expires": 1805914417.047153,
+    "expires": 1805914706.947529,
     "size": 41,
     "httpOnly": true,
     "secure": true,

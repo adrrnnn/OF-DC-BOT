@@ -128,39 +128,38 @@ export class MessageHandler {
       let source;
       let shouldSendLink = false;
 
-      // PRIORITY 1: Try template matching FIRST (word-by-word triggers)
+      // ALWAYS use AI for responses (template is just context)
+      // Template matching helps provide context to the AI, but we never skip AI
       const match = this.templateMatcher.findMatch(userMessage);
       
       if (match && match.confidence >= 0.5) {
-        // Template found - use it
-        response = match.response;
-        source = match.source === 'training_data' ? 'script_training' : 'script_template';
-        logger.info(`Template matched: ${match.templateId}`);
-        
-        if (match.sendLink) {
-          shouldSendLink = true;
-        }
-      } 
-      // PRIORITY 2: Use AI (only if template doesn't match)
-      else {
-        logger.info('No template match found, switching to AI...');
-        response = await this.aiHandler.generateResponse(
-          userMessage,
-          this.templateMatcher.getSystemPrompt()
-        );
-        source = 'ai_gemini';
-        
-        // Check if user message contains sexual content keywords
-        if (this.templateMatcher.isSexualContent(userMessage)) {
-          shouldSendLink = true;
-          logger.info(`🔥 Sexual/explicit content detected from ${userId} - OF link trigger activated`);
-        }
-        
-        // Check if AI response mentions OF/OnlyFans
-        if (response && this.mentionsOnlyFans(response)) {
-          shouldSendLink = true;
-          logger.info(`🔗 AI response mentions OnlyFans for ${userId} - OF link trigger activated`);
-        }
+        logger.info(`Template matched: ${match.templateId} (using AI with this context)`);
+      }
+
+      // ALWAYS call AI with the user message and system prompt
+      logger.info('Calling AI to generate response...');
+      response = await this.aiHandler.generateResponse(
+        userMessage,
+        this.templateMatcher.getSystemPrompt()
+      );
+      source = 'ai_gemini';
+      
+      // Check if template indicated this should send OF link
+      if (match && match.sendLink) {
+        shouldSendLink = true;
+        logger.info(`🔗 Template has sendLink flag - OF link will be triggered`);
+      }
+      
+      // Check if user message contains sexual content (independent of template)
+      if (this.templateMatcher.isSexualContent(userMessage)) {
+        shouldSendLink = true;
+        logger.info(`🔥 Sexual/explicit content detected from ${userId} - OF link trigger activated`);
+      }
+      
+      // Check if AI response mentions OF/OnlyFans
+      if (response && this.mentionsOnlyFans(response)) {
+        shouldSendLink = true;
+        logger.info(`🔗 AI response mentions OnlyFans for ${userId} - OF link trigger activated`);
       }
 
       // Build final response with OF link if needed
