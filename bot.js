@@ -636,6 +636,14 @@ class DiscordOFBot {
           }
           
           messageSent = true;
+          
+          // CRITICAL: Cancel the message collection timer for this user
+          // Prevents the timer from reprocessing the same message we just responded to
+          if (this.messageCollectionTimer.has(userId)) {
+            clearTimeout(this.messageCollectionTimer.get(userId));
+            this.messageCollectionTimer.delete(userId);
+            logger.debug(`🗑️  Cleared message collection timer for ${extractedUsername} (response sent)`);
+          }
         } else {
           logger.warn(`Failed to send response to ${extractedUsername}`);
         }
