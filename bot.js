@@ -357,6 +357,15 @@ class DiscordOFBot {
         logger.debug(`No new articles for ${username}`);
         return false;
       }
+      
+      // CRITICAL: Check if this message was already processed during startup
+      // If it has OF link (user engaging or old message), mark conversation as closed to prevent re-processing
+      if (latestArticle.hasOFLink && !this.conversationManager.isConversationActive(userId)) {
+        logger.info(`🔗 Detected OF link for ${username} - marking conversation closed (no active conversation)`);
+        this.closedConversations.add(userId);
+        this.lastSeenArticles.set(userId, currentHTML);
+        return false;
+      }
 
       // NEW ARTICLE DETECTED - add to queue
       logger.info(`New article from ${username}: "${latestArticle.content}"`);
@@ -407,6 +416,12 @@ class DiscordOFBot {
           
           for (const msg of messages) {
             seenSet.add(msg.content);
+            // CRITICAL: Check if message contains OF link during startup
+            // If so, close the conversation to prevent re-processing
+            if (msg.hasOFLink) {
+              logger.info(`🔗 Startup: Detected OF link for ${username || userId} - closing conversation to prevent re-processing`);
+              this.closedConversations.add(userId);
+            }
           }
           logger.debug(`[Startup] Marked ${messages.length} messages as seen for ${userId}`);
         }
