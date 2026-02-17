@@ -11,12 +11,6 @@
     "messageCount": 8,
     "ofLinkSent": false
   },
-  "1462031844764815391": {
-    "startTime": 1771000992257,
-    "lastMessageId": "we could vid call",
-    "messageCount": 1,
-    "ofLinkSent": true
-  },
   "1462040772324102316": {
     "startTime": 1771005206585,
     "lastMessageId": "oh [ ] do u meet people from discord then?",
@@ -28,5 +22,17 @@
     "lastMessageId": "D oh like where, snap?",
     "messageCount": 1,
     "ofLinkSent": true
+  },
+  "1473354173767745748": {
+    "startTime": 1771354454165,
+    "lastMessageId": null,
+    "messageCount": 0,
+    "ofLinkSent": false
+  },
+  "1462031844764815391": {
+    "startTime": 1771354504522,
+    "lastMessageId": "hiii",
+    "messageCount": 1,
+    "ofLinkSent": false
   }
 }

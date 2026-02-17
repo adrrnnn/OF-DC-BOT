@@ -37,7 +37,7 @@ export class MessageHandler {
       logger.info(`Message from ${userId}: "${userMessage}"`);
 
       // SAFEGUARD: Check for underage claims
-      if (this.isUnderage(userMessage)) {
+      if (this.aiHandler.isUnderage(userMessage)) {
         logger.warn(`⚠️  UNDERAGE CLAIM DETECTED from ${userId}: "${userMessage}"`);
         const blockMessage = `im only talking to ppl 18+`;
         return {
@@ -50,7 +50,7 @@ export class MessageHandler {
       }
 
       // SAFEGUARD: Check for illegal/harmful requests
-      if (this.isIllegalRequest(userMessage)) {
+      if (this.aiHandler.isIllegalRequest(userMessage)) {
         logger.warn(`⚠️  ILLEGAL/HARMFUL REQUEST from ${userId}: "${userMessage}"`);
         this.conversationManager.endConversation(userId);
         return null; // Don't respond to illegal requests
