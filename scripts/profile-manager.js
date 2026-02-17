@@ -74,6 +74,33 @@ function setActiveProfile(profileId) {
     }
 }
 
+function deleteProfile(profileId) {
+    try {
+        let data = initProfiles();
+        
+        const profileIndex = data.profiles.findIndex(p => p.id === profileId);
+        if (profileIndex === -1) {
+            console.error('[ERROR] Profile not found');
+            return false;
+        }
+        
+        const profile = data.profiles[profileIndex];
+        
+        // If deleting active profile, clear active
+        if (data.activeProfileId === profileId) {
+            data.activeProfileId = null;
+        }
+        
+        data.profiles.splice(profileIndex, 1);
+        fs.writeFileSync(PROFILES_PATH, JSON.stringify(data, null, 2));
+        console.log(`[OK] Profile "${profile.name}" deleted successfully!`);
+        return true;
+    } catch (e) {
+        console.error('[ERROR]', e.message);
+        return false;
+    }
+}
+
 function viewProfiles() {
     try {
         const data = initProfiles();
@@ -135,7 +162,15 @@ if (command === 'create') {
     }
     
     setActiveProfile(profileId);
+} else if (command === 'delete') {
+    const profileId = parseInt(args[1]);
+    if (!profileId) {
+        console.error('[ERROR] Usage: profile-manager.js delete <profile_id>');
+        process.exit(1);
+    }
+    
+    deleteProfile(profileId);
 } else {
-    console.error('[ERROR] Unknown command. Use: create, view, or setactive');
+    console.error('[ERROR] Unknown command. Use: create, view, setactive, or delete');
     process.exit(1);
 }

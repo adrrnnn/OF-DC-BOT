@@ -422,20 +422,128 @@ if %ERRORLEVEL% NEQ 0 (
 )
 
 echo.
-set /p PROFILE_ID="Enter profile ID (or press Enter to cancel): "
+echo ========================================
+echo          Profile Management
+echo ========================================
+echo [1-9] Select Profile by ID
+echo [V]   View Profile Details
+echo [A]   Add New Profile
+echo [D]   Delete Profile
+echo [B]   Back to Main Menu
+echo.
+set /p CHOICE="Enter choice: "
 
-if "%PROFILE_ID%"=="" goto MAIN_MENU
+if /I "%CHOICE%"=="B" goto MAIN_MENU
+if /I "%CHOICE%"=="A" goto ADD_NEW_PROFILE
+if /I "%CHOICE%"=="D" goto DELETE_PROFILE_MENU
+if /I "%CHOICE%"=="V" goto VIEW_PROFILE_DETAILS
 
-node scripts\profile-manager.js setactive %PROFILE_ID%
+REM If numeric (1-9), treat as profile ID
+for /L %%i in (1,1,9) do (
+    if "%CHOICE%"=="%%i" (
+        node scripts\profile-manager.js setactive %CHOICE%
+        if %ERRORLEVEL% EQU 0 (
+            echo.
+            echo Profile activated successfully!
+            echo.
+            pause
+            goto MAIN_MENU
+        ) else (
+            echo.
+            echo [ERROR] Invalid profile ID
+            echo.
+            pause
+            goto SELECT_PROFILE
+        )
+    )
+)
+
+echo Invalid choice. Try again.
+pause
+goto SELECT_PROFILE
+
+:ADD_NEW_PROFILE
+cls
+echo.
+echo ========================================
+echo       Add New Profile
+echo ========================================
+echo.
+set /p PROF_NAME="Enter profile name: "
+if "%PROF_NAME%"=="" goto SELECT_PROFILE
+
+set /p PROF_AGE="Enter profile age: "
+if "%PROF_AGE%"=="" goto SELECT_PROFILE
+
+set /p PROF_LOCATION="Enter profile location: "
+if "%PROF_LOCATION%"=="" goto SELECT_PROFILE
+
+set /p PROF_RACE="Enter profile race/ethnicity: "
+if "%PROF_RACE%"=="" goto SELECT_PROFILE
+
+node scripts\profile-manager.js create "%PROF_NAME%" %PROF_AGE% "%PROF_LOCATION%" "%PROF_RACE%"
+if %ERRORLEVEL% EQU 0 (
+    echo.
+    echo Profile created successfully!
+    echo.
+    pause
+    goto SELECT_PROFILE
+) else (
+    echo.
+    echo [ERROR] Failed to create profile
+    echo.
+    pause
+    goto ADD_NEW_PROFILE
+)
+
+:DELETE_PROFILE_MENU
+cls
+echo.
+echo ========================================
+echo       Delete Profile
+echo ========================================
+echo.
+
+node scripts\profile-manager.js view
 if %ERRORLEVEL% NEQ 0 (
-    echo [ERROR] Invalid profile ID
+    echo [ERROR] Failed to load profiles
     pause
     goto SELECT_PROFILE
 )
 
 echo.
+set /p DELETE_ID="Enter profile ID to delete (or press Enter to cancel): "
+if "%DELETE_ID%"=="" goto SELECT_PROFILE
+
+echo.
+echo Deleting profile ID %DELETE_ID%...
+node scripts\profile-manager.js delete %DELETE_ID%
+if %ERRORLEVEL% EQU 0 (
+    echo.
+    pause
+    goto SELECT_PROFILE
+) else (
+    echo.
+    echo [ERROR] Invalid profile ID
+    echo.
+    pause
+    goto DELETE_PROFILE_MENU
+)
+
+:VIEW_PROFILE_DETAILS
+cls
+echo.
+echo ========================================
+echo   View Profile Details
+echo ========================================
+echo.
+
+node scripts\profile-manager.js view
+echo.
+echo ^(View above to see all available profiles^)
+echo.
 pause
-goto MAIN_MENU
+goto SELECT_PROFILE
 :CHANGE_OF_LINK
 cls
 echo.
