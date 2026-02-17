@@ -223,8 +223,12 @@ echo [4] Back
 echo.
 set /p choice="Enter choice (1-4): "
 
-if "%choice%"=="4" goto VIEW_CURRENT
+REM Check Back first before any blocks
+if "%choice%"=="4" (
+    goto VIEW_CURRENT
+)
 
+REM Email Edit
 if "%choice%"=="1" (
     set /p NEWEMAIL="Enter new Email: "
     node -e "
@@ -250,7 +254,11 @@ if "%choice%"=="1" (
         console.error('[ERROR]', e.message);
     }
     "
+    pause
+    goto EDIT_CURRENT
 )
+
+REM Username Edit
 if "%choice%"=="2" (
     set /p NEWUSERNAME="Enter new Username: "
     node -e "
@@ -276,7 +284,11 @@ if "%choice%"=="2" (
         console.error('[ERROR]', e.message);
     }
     "
+    pause
+    goto EDIT_CURRENT
 )
+
+REM Password Edit
 if "%choice%"=="3" (
     set /p NEWPASSWORD="Enter new Password: "
     node -e "
@@ -302,10 +314,11 @@ if "%choice%"=="3" (
         console.error('[ERROR]', e.message);
     }
     "
+    pause
+    goto EDIT_CURRENT
 )
-if "%choice%"=="1" goto EDIT_CURRENT
-if "%choice%"=="2" goto EDIT_CURRENT
-if "%choice%"=="3" goto EDIT_CURRENT
+
+REM Invalid choice
 echo Invalid choice. Try again.
 pause
 goto EDIT_CURRENT
@@ -377,36 +390,35 @@ try {
 echo.
 set /p choice="Enter choice: "
 
-if "%choice%"=="0" goto CONFIGURE_ACCOUNT
-
-if defined choice (
-    node -e "
-    const fs = require('fs');
-    const choiceNum = parseInt('!choice!');
-    try {
-        if (!fs.existsSync('accounts.json')) {
-            console.log('[ERROR] No accounts database found');
-        } else {
-            const accounts = JSON.parse(fs.readFileSync('accounts.json', 'utf8'));
-            const acc = accounts.accounts[choiceNum - 1];
-            if (acc) {
-                const env = 'DISCORD_EMAIL=' + acc.email + '\nDISCORD_PASSWORD=' + acc.password + '\nBOT_USERNAME=' + acc.username + '\nOF_LINK=' + acc.ofLink + '\nGEMINI_API_KEY_1=\nGEMINI_API_KEY_2=\nGEMINI_API_KEY_3=\nOPENAI_API_KEY=\nCHECK_DMS_INTERVAL=5000\nRESPONSE_DELAY_MIN=1000\nRESPONSE_DELAY_MAX=3000';
-                fs.writeFileSync('.env', env);
-                accounts.lastActive = acc.email;
-                fs.writeFileSync('accounts.json', JSON.stringify(accounts, null, 2));
-                console.log('[OK] Account switched to: ' + acc.username);
-            } else {
-                console.log('[ERROR] Invalid selection');
-            }
-        }
-    } catch (e) {
-        console.error('[ERROR]', e.message);
-    }
-    "
+if "%choice%"=="0" (
+    goto CONFIGURE_ACCOUNT
 )
 
+node -e "
+const fs = require('fs');
+const choiceNum = parseInt('!choice!');
+try {
+    if (!fs.existsSync('accounts.json')) {
+        console.log('[ERROR] No accounts database found');
+    } else {
+        const accounts = JSON.parse(fs.readFileSync('accounts.json', 'utf8'));
+        const acc = accounts.accounts[choiceNum - 1];
+        if (acc) {
+            const env = 'DISCORD_EMAIL=' + acc.email + '\nDISCORD_PASSWORD=' + acc.password + '\nBOT_USERNAME=' + acc.username + '\nOF_LINK=' + acc.ofLink + '\nGEMINI_API_KEY_1=\nGEMINI_API_KEY_2=\nGEMINI_API_KEY_3=\nOPENAI_API_KEY=\nCHECK_DMS_INTERVAL=5000\nRESPONSE_DELAY_MIN=1000\nRESPONSE_DELAY_MAX=3000';
+            fs.writeFileSync('.env', env);
+            accounts.lastActive = acc.email;
+            fs.writeFileSync('accounts.json', JSON.stringify(accounts, null, 2));
+            console.log('[OK] Account switched to: ' + acc.username);
+        } else {
+            console.log('[ERROR] Invalid selection');
+        }
+    }
+} catch (e) {
+    console.error('[ERROR]', e.message);
+}
+"
 pause
-goto CONFIGURE_ACCOUNT
+goto LIST_ACCOUNTS
 :SELECT_PROFILE
 cls
 echo.
