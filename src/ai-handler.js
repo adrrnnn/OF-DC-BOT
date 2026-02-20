@@ -266,8 +266,28 @@ Reply naturally in 1-2 short sentences.`;
     if (!message) return false;
     const lower = message.toLowerCase();
 
-    // Illegal/harmful keywords
+    // Illegal/harmful keywords - ONLY ACTUAL CRIMES, not slang or terms of endearment
     const illegalKeywords = [
+      'drug',
+      'cocaine',
+      'heroin',
+      'meth',
+      'crack',
+      'weed supplier',
+      'sell drug',
+      'buy drug',
+      'kill',
+      'murder',
+      'shoot',
+      'stab',
+      'harm you',
+      'hurt you',
+      'rape',
+      'assault',
+      'weapon',
+      'gun',
+      'knife',
+      'bomb',
       'money transfer',
       'send money',
       'bank account',
@@ -278,14 +298,9 @@ Reply naturally in 1-2 short sentences.`;
       'blackmail',
       'extortion',
       'threaten',
-      'harm',
-      'violence',
-      'rape',
-      'abuse',
-      'child',
-      'kid',
-      'baby',
-      'minor'
+      'threat',
+      'fake id',
+      'counterfeit'
     ];
 
     return illegalKeywords.some(kw => lower.includes(kw));
@@ -298,22 +313,29 @@ Reply naturally in 1-2 short sentences.`;
     if (!response) return false;
     const lower = response.toLowerCase();
 
-    // AI should never mention these things
+    // AI should never mention these actual illegal things
     const illegalResponseKeywords = [
-      'money transfer',
+      'sell drug',
+      'buy drug',
+      'kill',
+      'murder',
+      'shoot',
+      'stab',
+      'i will harm',
+      'i will hurt',
+      'rape',
+      'assault',
+      'weapon',
+      'gun',
+      'bomb',
+      'money transfer to',
       'send me money',
-      'bank account',
-      'credit card',
-      'payment',
+      'your bank account',
+      'your credit card',
       'prostitute',
       'escort service',
       'blackmail',
-      'extortion',
-      'i will harm',
-      'i will hurt',
-      'violence',
-      'rape',
-      'abuse'
+      'extortion'
     ];
 
     return illegalResponseKeywords.some(kw => lower.includes(kw));

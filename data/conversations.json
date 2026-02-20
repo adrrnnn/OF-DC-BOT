@@ -30,19 +30,19 @@
     "messageCount": 0,
     "ofLinkSent": false
   },
-  "1462031844764815391": {
-    "startTime": 1771614859136,
-    "lastUserMessageTime": 1771614940281,
-    "lastMessageId": "[ ] https://onlyfans.com/ OnlyFans",
-    "messageCount": 3,
-    "ofLinkSent": true,
-    "permanentlyClosed": true
-  },
   "1473354173767745748": {
     "startTime": 1771614981521,
     "lastUserMessageTime": 1771615080532,
     "lastMessageId": "PRTS aw come on",
     "messageCount": 4,
     "ofLinkSent": false
+  },
+  "1462031844764815391": {
+    "startTime": 1771615369337,
+    "lastUserMessageTime": 1771615514231,
+    "lastMessageId": "u got snap baby or insta?",
+    "messageCount": 3,
+    "ofLinkSent": false,
+    "permanentlyClosed": true
   }
 }
