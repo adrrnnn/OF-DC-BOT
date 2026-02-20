@@ -739,6 +739,12 @@ class DiscordOFBot {
             }
           }
           
+          // SAFEGUARD: If this was an underage or illegal content response, mark permanently closed
+          if (response.source === 'safeguard_age' || response.source === 'safeguard_illegal') {
+            this.conversationManager.markPermanentlyClosed(userId);
+            logger.info(`🚫 SAFEGUARD TRIGGERED (${response.source}): ${extractedUsername} - conversation permanently closed`);
+          }
+          
           messageSent = true;
           
           // CRITICAL: Cancel the message collection timer for this user

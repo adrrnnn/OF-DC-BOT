@@ -40,6 +40,10 @@ export class MessageHandler {
       if (this.aiHandler.isUnderage(userMessage)) {
         logger.warn(`⚠️  UNDERAGE CLAIM DETECTED from ${userId}: "${userMessage}"`);
         const blockMessage = `im only talking to ppl 18+`;
+        
+        // Mark as permanently closed - NEVER respond again after this
+        this.conversationManager.markPermanentlyClosed(userId);
+        
         return {
           userId,
           message: blockMessage,
@@ -52,8 +56,18 @@ export class MessageHandler {
       // SAFEGUARD: Check for illegal/harmful requests
       if (this.aiHandler.isIllegalRequest(userMessage)) {
         logger.warn(`⚠️  ILLEGAL/HARMFUL REQUEST from ${userId}: "${userMessage}"`);
-        this.conversationManager.endConversation(userId);
-        return null; // Don't respond to illegal requests
+        const blockMessage = `im not into that`;
+        
+        // Mark as permanently closed - NEVER respond again after this
+        this.conversationManager.markPermanentlyClosed(userId);
+        
+        return {
+          userId,
+          message: blockMessage,
+          source: 'safeguard_illegal',
+          hasOFLink: false,
+          closeChat: true
+        };
       }
 
       // CRITICAL: Check if we've already sent the OF link to this user
