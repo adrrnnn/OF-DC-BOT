@@ -603,9 +603,12 @@ class DiscordOFBot {
       if (ofLinkAlreadySent && !isTestAccount && this.messageHandler.isRefusingOF(cleanMessageText)) {
         logger.info(`🔗 User ${extractedUsername} refusing OF after link sent - sending final goodbye message`);
         
+        // Mark message as processed to prevent re-processing
+        this.conversationManager.setLastMessageId(userId, cleanMessageText);
+        
         // Send one final response
         const finalMessage = this.messageHandler.getFinalGoodbyeMessage();
-        await this.browser.sendMessage(userId, finalMessage);
+        await this.browser.sendMessage(finalMessage);
         logger.info(`✅ Final response sent to ${extractedUsername}: "${finalMessage}"`);
         
         // Mark conversation as permanently closed
