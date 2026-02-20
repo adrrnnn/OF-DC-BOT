@@ -285,9 +285,24 @@ class DiscordOFBot {
         if (unreadDMs.length > 0) {
           logger.info(`Found ${unreadDMs.length} unread DM(s)`);
 
-          // Process the first unread DM
-          if (unreadDMs.length > 0) {
+          // Check each DM to find which one has actual unread messages
+          let dmWithUnread = null;
+          for (const dm of unreadDMs) {
+            const hasUnread = await this.browser.checkDMHasUnreadMessages(dm.userId);
+            if (hasUnread) {
+              dmWithUnread = dm;
+              logger.info(`✓ Found unread message from ${dm.username || dm.userId}`);
+              break;
+            }
+          }
+
+          // Process the DM with unread, or first in list as fallback
+          if (dmWithUnread) {
+            await this.processDM(dmWithUnread);
+          } else {
+            logger.debug(`No DMs with confirmed unread, processing first in list`);
             await this.processDM(unreadDMs[0]);
+          }
             
             // After first check completes, mark startup as complete
             // This prevents responding to old history that existed at boot time
@@ -296,7 +311,6 @@ class DiscordOFBot {
               this.startupComplete = true;
               logger.info('[Startup] First polling check complete - now accepting new messages');
             }
-          }
         } else {
           // Return to friends list if not already there
           if (this.lastPage !== 'friends') {
