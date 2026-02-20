@@ -91,9 +91,9 @@ export class MessageHandler {
           };
         }
         
-        // They're not refusing, just ignore the message
-        logger.info(`⏭️  OF link already sent to ${userId} - User still replying but not refusing - IGNORING (conversation in closing state)`);
-        return null; // Don't respond at all
+        // They're not refusing - continue the conversation normally
+        logger.info(`✅ OF link already sent to ${userId} - User continuing conversation (responding normally)`);
+        // FALL THROUGH - continue processing to generate response
       }
 
       // CRITICAL: Check if message contains a link (user clicked OF link or sent their own)
