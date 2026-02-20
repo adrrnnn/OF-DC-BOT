@@ -40,8 +40,10 @@ export class ConversationManager {
   }
 
   startConversation(userId) {
+    const now = Date.now();
     this.conversations.set(userId, {
-      startTime: Date.now(),
+      startTime: now,
+      lastUserMessageTime: now,  // Track when user last sent a message
       lastMessageId: null,
       messageCount: 0,
       ofLinkSent: false
@@ -49,17 +51,35 @@ export class ConversationManager {
     this.saveState();
   }
 
+  /**
+   * Check if conversation is still active
+   * Closes after 3 minutes (180 seconds) of inactivity from the user
+   */
   isConversationActive(userId) {
     const conv = this.conversations.get(userId);
     if (!conv) return false;
     
-    // Conversation stays active for 15 seconds, then moves to next in queue
-    const fifteenSeconds = 15 * 1000;
-    if (Date.now() - conv.startTime > fifteenSeconds) {
+    // 3 minutes idle timeout: if no messages from user for 3+ minutes, close conversation
+    const threeMinutes = 3 * 60 * 1000; // 180000 ms
+    const timeSinceLastUserMessage = Date.now() - (conv.lastUserMessageTime || conv.startTime);
+    
+    if (timeSinceLastUserMessage > threeMinutes) {
       this.endConversation(userId);
       return false;
     }
     return true;
+  }
+
+  /**
+   * Update the last time user sent a message
+   * Call this whenever a new message arrives from the user
+   */
+  recordUserMessage(userId) {
+    const conv = this.conversations.get(userId);
+    if (conv) {
+      conv.lastUserMessageTime = Date.now();
+      this.saveState();
+    }
   }
 
   // Track which message we last replied to (prevent double replies)

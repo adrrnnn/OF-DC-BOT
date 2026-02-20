@@ -257,17 +257,26 @@ class DiscordOFBot {
 
         this.lastChecked = Date.now();
 
-        // If currently in conversation, only check for messages from that user
+        // If currently in conversation, check if it's still active (3 min timeout)
         if (this.inConversationWith) {
-          const dm = { userId: this.inConversationWith, username: `user_${this.inConversationWith.substring(0, 8)}` };
-          const hasNewMessages = await this.checkDMForNewMessages(dm);
+          // Check if conversation has timed out due to inactivity
+          const isActive = this.conversationManager.isConversationActive(this.inConversationWith);
           
-          if (hasNewMessages) {
-            // New message from the user we're talking to
-            // START COLLECTION TIMER: Wait a bit for more lines before responding
-            this.startMessageCollectionTimer(dm);
+          if (!isActive) {
+            logger.info(`⏱️  CONVERSATION TIMEOUT: No messages from user_${this.inConversationWith.substring(0, 8)} for 3 minutes - closing conversation and returning to friend list`);
+            this.inConversationWith = null;
+            // Continue to check other DMs
+          } else {
+            const dm = { userId: this.inConversationWith, username: `user_${this.inConversationWith.substring(0, 8)}` };
+            const hasNewMessages = await this.checkDMForNewMessages(dm);
+            
+            if (hasNewMessages) {
+              // New message from the user we're talking to
+              // START COLLECTION TIMER: Wait a bit for more lines before responding
+              this.startMessageCollectionTimer(dm);
+            }
+            return; // Don't check other DMs while in conversation
           }
-          return; // Don't check other DMs while in conversation
         }
 
         // Get unread DMs
@@ -557,6 +566,9 @@ class DiscordOFBot {
 
       logger.info(`User said: "${cleanMessageText}"`);
       
+      // Record that the user sent a message (resets 3-minute idle timer)
+      this.conversationManager.recordUserMessage(userId);
+      
       // CONVERSATION MODE BEHAVIOR:
       // If hasRepliedOnce is false: This is the first message - respond with latest message only, immediately
       // If hasRepliedOnce is true: In conversation mode - can batch multiple messages, enable multi-turn logic
@@ -692,6 +704,9 @@ class DiscordOFBot {
    */
   startMessageCollectionTimer(dm) {
     const { userId, username } = dm;
+    
+    // Record that user sent a message (resets 3-min idle timer)
+    this.conversationManager.recordUserMessage(userId);
     
     // If timer already running, cancel it and restart (user sent another message)
     if (this.messageCollectionTimer.has(userId)) {

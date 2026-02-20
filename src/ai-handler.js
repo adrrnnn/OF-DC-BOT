@@ -118,12 +118,6 @@ Reply naturally in 1-2 short sentences. Reference what they said specifically.`;
         return null; // Reject the response
       }
       
-      // Validate response quality - if it's bad, use fallback
-      if (!this.isGoodResponse(response, userMessage)) {
-        logger.debug(`AI response was too generic/dry, using fallback instead`);
-        response = this.getContextualFallbackResponse(userMessage);
-      }
-      
       return response;
 
     } catch (error) {
