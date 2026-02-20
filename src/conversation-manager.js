@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { logger } from './logger.js';
 
 const dataDir = path.join(process.cwd(), 'data');
 const stateFile = path.join(dataDir, 'conversations.json');
@@ -101,7 +102,11 @@ export class ConversationManager {
     const conv = this.conversations.get(userId);
     if (conv) {
       conv.ofLinkSent = true;
-      logger.info(`📤 OF LINK SENT to ${userId} - Conversation status: PREPARING TO CLOSE (awaiting user response or rejection)`);
+      logger.info(`\n=== STAGE 1-2: OF LINK CONFIRMED SENT ===`);
+      logger.info(`📤 OF LINK SENT to ${userId}`);
+      logger.info(`⚠️ Conversation status: PREPARING TO CLOSE (awaiting user response or rejection)`);
+      logger.info(`🔄 Next: If user refuses → FINAL GOODBYE message sent`);
+      logger.info(`🔄 Next: If user accepts/clicks → Conversation ends silently`);
       this.saveState();
     }
   }

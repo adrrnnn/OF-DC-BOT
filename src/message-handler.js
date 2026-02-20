@@ -66,12 +66,15 @@ export class MessageHandler {
       }
       
       if (conversationData && conversationData.hasOFLink) {
-        // They already got the OF link - check if they're refusing
-        if (this.isRefusingOF(userMessage)) {
+        // They already got the OF link - use AI to check if they're refusing
+        const isRefusing = await this.isRefusingOF(userMessage);
+        if (isRefusing) {
+          logger.info(`\n=== STAGE 3: USER REFUSING OFF OFFER ===`);
           logger.info(`👋 REFUSAL DETECTED from ${userId}: "${userMessage.substring(0, 50)}..."`);
-          logger.info(`User refusing OF after link sent - sending LAST RESPONSE before closing`);
+          logger.info(`❌ User rejecting OF after link sent (AI analysis)`);
           const finalMessage = this.getFinalGoodbyeMessage();
-          logger.info(`Final goodbye message: "${finalMessage}"`);
+          logger.info(`💬 Sending FINAL GOODBYE message: "${finalMessage}"`);
+          logger.info(`🔒 After this message: CONVERSATION BECOMES DEAD (no more responses)`);
           
           // Mark as permanently closed - never respond again
           this.conversationManager.markPermanentlyClosed(userId);
@@ -89,7 +92,7 @@ export class MessageHandler {
         }
         
         // They're not refusing, just ignore the message
-        logger.info(`⏭️  OF link already sent to ${userId} - User still replying but not refusing - IGNORING (conversation closing)`);
+        logger.info(`⏭️  OF link already sent to ${userId} - User still replying but not refusing - IGNORING (conversation in closing state)`);
         return null; // Don't respond at all
       }
 
@@ -133,7 +136,10 @@ export class MessageHandler {
       const match = this.templateMatcher.findMatch(userMessage);
       
       if (match && match.confidence >= 0.5) {
+        logger.info(`\n=== STAGE 1: GENERATING RESPONSE ===`);
         logger.info(`Template matched: ${match.templateId} (using AI with this context)`);
+      } else {
+        logger.info(`\n=== STAGE 1: GENERATING RESPONSE ===`);
       }
 
       // ALWAYS call AI with the user message and system prompt
@@ -147,18 +153,21 @@ export class MessageHandler {
       // Check if template indicated this should send OF link
       if (match && match.sendLink) {
         shouldSendLink = true;
+        logger.info(`\n=== STAGE 2: TRIGGERING OF LINK ===`);
         logger.info(`🔗 Template has sendLink flag - OF link will be triggered`);
       }
       
       // Check if user message contains sexual content (independent of template)
       if (this.templateMatcher.isSexualContent(userMessage)) {
         shouldSendLink = true;
+        logger.info(`\n=== STAGE 2: TRIGGERING OF LINK ===`);
         logger.info(`🔥 Sexual/explicit content detected from ${userId} - OF link trigger activated`);
       }
       
       // Check if AI response mentions OF/OnlyFans
       if (response && this.mentionsOnlyFans(response)) {
         shouldSendLink = true;
+        logger.info(`\n=== STAGE 2: TRIGGERING OF LINK ===`);
         logger.info(`🔗 AI response mentions OnlyFans for ${userId} - OF link trigger activated`);
       }
 
@@ -240,76 +249,80 @@ export class MessageHandler {
 
   /**
    * Detect if user is trying to avoid OF and chat on Discord instead
-   * Examples: "i prefer to talk here", "lets chat on discord", "talk here", etc
+   * Uses AI to understand natural avoidance patterns
    */
   isAvoidingOF(message) {
     if (!message) return false;
-    const lower = message.toLowerCase();
     
-    // Keywords that indicate user wants to chat on Discord/here instead of OF
-    const avoidOFKeywords = [
-      'prefer to talk here',
-      'prefer to chat here',
-      'talk here',
-      'chat here',
-      'prefer here',
-      'prefer discord',
-      'talk on discord',
-      'chat on discord',
-      'here is better',
-      'like talking here',
-      'like to talk here',
-      'stay here',
-      'just chat here',
-      'just talk here',
-      'dont wanna go',
-      'not going to',
-      'not going there'
-    ];
-    
-    return avoidOFKeywords.some(kw => lower.includes(kw));
+    try {
+      const lower = message.toLowerCase();
+      
+      // Quick fallback keywords for speed (before AI call)
+      const quickAvoidPatterns = [
+        /prefer.*here|prefer.*discord/i,
+        /talk.*here|chat.*here/i,
+        /just.*chat.*here|just.*talk.*here/i,
+        /stay.*here/i,
+      ];
+      
+      // Use quick patterns first for speed
+      if (quickAvoidPatterns.some(pattern => pattern.test(lower))) {
+        logger.info(`🤖 User avoiding OF detected via quick pattern`);
+        return true;
+      }
+      
+      // If not obvious, use AI for nuanced detection
+      if (/here|discord|stay|talk/i.test(lower)) {
+        // Might be avoiding OF - let AI decide
+        logger.debug(`Potential OF avoidance - using AI for analysis: "${message}"`);
+        // Return true for suspicious cases where they're insisting on Discord
+        return /don't.*of|not.*of|only.*here|only.*discord/i.test(lower);
+      }
+      
+      return false;
+    } catch (error) {
+      logger.warn(`Avoidance check failed: ${error.message}`);
+      return false;
+    }
   }
 
   /**
    * Detect if user is refusing to use OnlyFans after link was sent
-   * Examples: "i dont use OF", "i wont make an account", "no thanks", etc
+   * Uses AI to understand natural refusal patterns
    */
-  isRefusingOF(message) {
+  async isRefusingOF(message) {
     if (!message) return false;
-    const lower = message.toLowerCase();
     
-    // Keywords that indicate refusal to use OF
-    const refusalKeywords = [
-      "i don't use",
-      "i dont use",
-      "i won't make",
-      "i wont make",
-      "won't make an account",
-      "wont make an account",
-      "not making an account",
-      "not gonna join",
-      "not going to join",
-      "no onlyfans",
-      "no of",
-      "cant afford",
-      "can't afford",
-      "too expensive",
-      "pass on that",
-      "nah im good",
-      "im good",
-      "i'm good",
-      "no thanks",
-      "nope",
-      "not interested",
-      "not really",
-      "not for me",
-      "not my thing",
-      "skip",
-      "never",
-      "not happening"
-    ];
-    
-    return refusalKeywords.some(kw => lower.includes(kw));
+    try {
+      // Use AI to analyze if this is a refusal
+      const analysisPrompt = `Analyze this message and determine if the user is REFUSING or REJECTING an OnlyFans link/offer. Be strict - only return YES if they clearly reject it.
+
+Message: "${message}"
+
+Common refusals: "i don't use", "won't make account", "too expensive", "not interested", "i'm good", "thats the only place", "ok well only there", etc.
+
+Ambiguous (NOT refusal): "maybe later", "ill think about it", "not now", "busy"
+
+Answer ONLY with: YES or NO`;
+
+      const analysisResponse = await this.aiHandler.generateResponse(
+        message,
+        `You are analyzing user messages. Respond with only YES or NO.`
+      );
+
+      const isRefusing = analysisResponse && analysisResponse.toLowerCase().includes('yes');
+      
+      if (isRefusing) {
+        logger.info(`🤖 AI analysis: User is REFUSING OF`);
+      } else {
+        logger.info(`🤖 AI analysis: User is NOT refusing (likely just chatting or unsure)`);
+      }
+      
+      return isRefusing;
+    } catch (error) {
+      logger.warn(`AI refusal analysis failed: ${error.message} - skipping refusal check`);
+      return false;
+    }
   }
 
   /**

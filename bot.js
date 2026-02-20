@@ -42,7 +42,7 @@ class DiscordOFBot {
     this.dmCheckMinInterval = 30000; // Only re-check a DM every 30 seconds at minimum
     this.lastResponseTime = new Map(); // Track when we last responded to each user for cooldown
     this.responseCooldown = 3500; // Minimum 3.5 seconds between responses to same user
-    this.testAccounts = ['kuangg']; // Test accounts - conversation resets on new greeting
+    this.testAccounts = ['kuangg', 'noirpheus', 'rhynxprts']; // Test accounts - conversation resets on new greeting
     this.responsePending = {}; // Track which users have responses being sent
     this.closedConversations = new Set(); // Users with OF link sent - STOP responding
     this.hasRepliedOnce = new Map(); // Track which users have received their first bot reply (enables conversation mode)
