@@ -32,7 +32,7 @@ export class BrowserController {
   }
 
   /**
-   * Launch browser
+   * Launch browser with enhanced monitoring and error handling
    */
   async launch() {
     try {
@@ -64,10 +64,84 @@ export class BrowserController {
         Object.defineProperty(navigator, 'webdriver', { get: () => false });
       });
 
-      logger.info('Browser launched');
+      // Add event listeners for monitoring (based on production best practices)
+      this.setupBrowserMonitoring();
+
+      logger.info('Browser launched with stability monitoring');
       return true;
     } catch (error) {
       logger.error('Browser launch failed', { error: error.message });
+      return false;
+    }
+  }
+
+  /**
+   * Setup browser and page event monitoring for production reliability
+   * Detects browser crashes, disconnects, and page errors
+   */
+  setupBrowserMonitoring() {
+    // Browser disconnect monitoring (detects crashes)
+    this.browser.on('disconnected', () => {
+      logger.error('Browser disconnected or crashed - needs restart');
+      // Bot.js main loop will detect this and restart
+    });
+
+    // Page error monitoring
+    this.page.on('error', (error) => {
+      logger.error('Page error emitted', { message: error.message });
+    });
+
+    // Response monitoring (log suspicious responses)
+    this.page.on('response', (response) => {
+      if (!response.ok() && response.status() >= 500) {
+        logger.warn(`Server error detected: [${response.status()}] ${response.url()}`);
+      }
+    });
+
+    // Catch execution context destroyed errors
+    this.page.on('error', (error) => {
+      if (error.message.includes('Execution context was destroyed')) {
+        logger.error('Execution context destroyed - page is likely stuck');
+      }
+    });
+  }
+
+  /**
+   * Perform health check on browser - returns true if healthy, false if needs restart
+   */
+  async healthCheck() {
+    try {
+      // Try to evaluate a simple expression
+      const result = await Promise.race([
+        this.page.evaluate(() => true),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Health check timeout')), 5000)
+        )
+      ]);
+
+      return result === true;
+    } catch (error) {
+      logger.warn(`Health check failed: ${error.message}`);
+      if (error.message.includes('Execution context')) {
+        logger.error('Execution context destroyed - browser needs restart');
+      }
+      return false;
+    }
+  }
+
+  /**
+   * Clear page state and reset to a clean state
+   * Useful after errors to ensure next operation starts fresh
+   */
+  async clearPageState() {
+    try {
+      logger.debug('Clearing page state...');
+      // Navigate to blank page
+      await this.page.goto('about:blank', { waitUntil: 'load' });
+      logger.debug('Page cleared');
+      return true;
+    } catch (error) {
+      logger.warn('Failed to clear page state', { error: error.message });
       return false;
     }
   }
@@ -208,29 +282,68 @@ export class BrowserController {
   }
 
   /**
-   * Navigate to friends list (home)
+   * Navigate to friends list (home) with enhanced stability
+   * Uses timeout + retry pattern to handle race conditions on slow systems
    */
-  async navigateToFriendsList() {
+  async navigateToFriendsList(retryCount = 0, maxRetries = 3) {
     try {
-      await this.page.goto('https://discord.com/channels/@me', {
-        waitUntil: 'domcontentloaded',
-      });
+      const timeoutMs = 15000; // 15 seconds per attempt
+      
+      // Wrap in Promise.race to enforce timeout
+      await Promise.race([
+        this.page.goto('https://discord.com/channels/@me', {
+          waitUntil: 'domcontentloaded',
+        }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Navigation timeout')), timeoutMs)
+        )
+      ]);
 
-      // Verify we're actually on the friends list page
-      await this.page.waitForSelector('nav, [role="navigation"]', { timeout: 5000 }).catch(() => {
-        logger.warn('Navigation/sidebar not found on friends list');
-      });
-
-      logger.info('Navigated to friends list');
-      return true;
+      // CRITICAL: After domcontentloaded, wait for React to render sidebar
+      // Discord's React takes 1-3 seconds after HTML loads
+      // Using waitForFunction to check for actual DM links, not just nav element
+      logger.debug('Waiting for Discord sidebar React component to render...');
+      
+      try {
+        await this.page.waitForFunction(() => {
+          // Check if sidebar has DM links - this proves React rendered
+          const dmLinks = document.querySelectorAll('a[href*="/channels/@me/"]');
+          return dmLinks.length > 0;
+        }, { timeout: 8000 }); // Wait up to 8 seconds for sidebar to render
+        
+        logger.info('Navigated to friends list - sidebar rendered');
+        return true;
+      } catch (sidebarError) {
+        logger.warn('Sidebar did not render after navigation, trying fallback check');
+        
+        // Fallback: just check if we can see navigation elements
+        await this.page.waitForSelector('nav, [role="navigation"]', { timeout: 3000 })
+          .catch(() => logger.warn('Navigation/sidebar elements not found'));
+        
+        logger.info('Navigated to friends list (fallback)');
+        return true;
+      }
     } catch (error) {
       logger.error('Navigation failed', { error: error.message });
+      
+      // Retry logic: if network error or timeout, try again
+      if (retryCount < maxRetries && 
+          (error.message.includes('timeout') || 
+           error.message.includes('net::ERR') ||
+           error.message.includes('Execution context'))) {
+        
+        logger.warn(`Navigation retry ${retryCount + 1}/${maxRetries} after error: ${error.message}`);
+        await new Promise(r => setTimeout(r, 2000)); // Wait 2 seconds before retry
+        return this.navigateToFriendsList(retryCount + 1, maxRetries);
+      }
+      
       return false;
     }
   }
 
   /**
    * Get unread DMs - check which ones have new messages we haven't replied to
+   * Enhanced with timeout and error recovery
    */
   async getUnreadDMs() {
     try {
@@ -238,64 +351,86 @@ export class BrowserController {
       const currentUrl = this.page.url();
       if (!currentUrl.includes('/channels/@me')) {
         // Only navigate if we're not on friends list
-        await this.page.goto('https://discord.com/channels/@me', {
-          waitUntil: 'domcontentloaded',
-        });
+        logger.debug('Not on friends list, navigating...');
+        const navSuccess = await this.navigateToFriendsList();
+        if (!navSuccess) {
+          logger.warn('Navigation to friends list failed');
+          return [];
+        }
       }
       
       // Wait for sidebar to fully load with DM list
-      await this.page.waitForSelector('a[href*="/channels/@me/"]', { timeout: 5000 }).catch(() => {
-        logger.warn('DM sidebar links not found, sidebar may not be loaded');
-      });
+      // Use timeout to prevent indefinite hanging
+      try {
+        await Promise.race([
+          this.page.waitForSelector('a[href*="/channels/@me/"]', { timeout: 5000 }),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Sidebar load timeout')), 6000)
+          )
+        ]).catch((err) => {
+          logger.warn(`Sidebar links check failed: ${err.message}`);
+        });
+      } catch (err) {
+        logger.warn('Failed waiting for DM sidebar links');
+      }
 
       await new Promise(r => setTimeout(r, 500));
 
       // Get all DM links from sidebar using multiple selector strategies
-      const dmLinks = await this.page.evaluate(() => {
-        const links = [];
-        const seenIds = new Set();
+      // Wrapped in timeout to handle stuck queries
+      const dmLinks = await Promise.race([
+        this.page.evaluate(() => {
+          const links = [];
+          const seenIds = new Set();
 
-        // Strategy 1: Direct href selector (most reliable)
-        let allLinks = Array.from(document.querySelectorAll('a[href*="/channels/@me/"]'));
-        
-        // Strategy 2: If no links found, try to find them in the navigation area
-        if (allLinks.length === 0) {
-          // Look in the main nav area
-          const nav = document.querySelector('nav, [role="navigation"]') || 
-                     document.querySelector('[class*="sidebar"], [class*="nav"]');
-          if (nav) {
-            allLinks = Array.from(nav.querySelectorAll('a[href*="/channels/@me/"]'));
+          // Strategy 1: Direct href selector (most reliable)
+          let allLinks = Array.from(document.querySelectorAll('a[href*="/channels/@me/"]'));
+          
+          // Strategy 2: If no links found, try to find them in the navigation area
+          if (allLinks.length === 0) {
+            // Look in the main nav area
+            const nav = document.querySelector('nav, [role="navigation"]') || 
+                       document.querySelector('[class*="sidebar"], [class*="nav"]');
+            if (nav) {
+              allLinks = Array.from(nav.querySelectorAll('a[href*="/channels/@me/"]'));
+            }
           }
-        }
 
-        // Strategy 3: Try to find by role and data attributes
-        if (allLinks.length === 0) {
-          allLinks = Array.from(document.querySelectorAll('[role="listitem"] a[href*="/channels"]'));
-        }
-
-        for (const link of allLinks) {
-          try {
-            const href = link.getAttribute('href');
-            if (!href) continue;
-
-            const match = href.match(/channels\/@me\/(\d{15,})/);
-            if (!match || !match[1]) continue;
-
-            const userId = match[1];
-            if (seenIds.has(userId)) continue;
-            seenIds.add(userId);
-
-            const username = link.textContent?.trim() || 'User_' + userId.substring(0, 8);
-            links.push({ userId, username });
-          } catch (e) {
-            // Skip
+          // Strategy 3: Try to find by role and data attributes
+          if (allLinks.length === 0) {
+            allLinks = Array.from(document.querySelectorAll('[role="listitem"] a[href*="/channels"]'));
           }
-        }
 
-        return links;
+          for (const link of allLinks) {
+            try {
+              const href = link.getAttribute('href');
+              if (!href) continue;
+
+              const match = href.match(/channels\/@me\/(\d{15,})/);
+              if (!match || !match[1]) continue;
+
+              const userId = match[1];
+              if (seenIds.has(userId)) continue;
+              seenIds.add(userId);
+
+              const username = link.textContent?.trim() || 'User_' + userId.substring(0, 8);
+              links.push({ userId, username });
+            } catch (e) {
+              // Skip
+            }
+          }
+
+          return links;
+        }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('DM extraction timeout')), 4000)
+        )
+      ]).catch((err) => {
+        logger.warn(`DM link extraction failed: ${err.message}`);
+        return [];
       });
 
-      logger.debug(`Found ${dmLinks.length} total DMs in sidebar (${dmLinks.map(d => d.username).join(', ')})`);
+      logger.debug(`Found ${dmLinks.length} total DMs in sidebar ${dmLinks.length > 0 ? `(${dmLinks.map(d => d.username).join(', ')})` : ''}`);
 
       // If still no DMs found, there might be an issue with the sidebar
       if (dmLinks.length === 0) {
@@ -309,11 +444,14 @@ export class BrowserController {
       return dmLinks;
     } catch (error) {
       logger.error('Failed to get unread DMs', { error: error.message });
-      // Try to get back to friends list
+      
+      // Try to get back to friends list (error recovery)
       try {
+        logger.debug('Attempting error recovery - navigating back to friends list');
+        await this.clearPageState();
         await this.navigateToFriendsList();
       } catch (e) {
-        // Ignore
+        logger.warn(`Error recovery failed: ${e.message}`);
       }
       return [];
     }
@@ -369,73 +507,126 @@ export class BrowserController {
   }
 
   /**
-   * Open DM with user
+   * Open DM with user - with enhanced stability and execution context recovery
+   * Uses timeout + selector waits to ensure messages are loaded before returning
    */
-  async openDM(userId) {
+  async openDM(userId, retryCount = 0, maxRetries = 2) {
     try {
-      // Instead of goto(), click the DM link in the sidebar
-      // This is more reliable than direct navigation
-      const clicked = await this.page.evaluate((userId) => {
+      logger.debug(`Opening DM with ${userId} (attempt ${retryCount + 1}/${maxRetries + 1})`);
+      
+      // First, check if we can find the DM link in sidebar
+      const linkExists = await this.page.evaluate((userId) => {
         const link = document.querySelector(`a[href*="/channels/@me/${userId}"]`);
-        if (link) {
-          link.click();
-          return true;
-        }
-        return false;
+        return link ? true : false;
       }, userId);
-      
-      if (!clicked) {
-        logger.warn(`DM link not found in sidebar for ${userId}, trying direct navigation`);
-        // Fallback to goto if link not found
-        await this.page.goto(`https://discord.com/channels/@me/${userId}`, {
-          waitUntil: 'domcontentloaded',
-          timeout: 10000, // Add explicit timeout
-        });
-      }
-      
-      // Wait for page to settle after click/navigation
-      await new Promise(r => setTimeout(r, 1000));
-      
-      // Wait for messages to be visible - use a retry loop to ensure articles load
-      logger.debug('Waiting for article elements to load...');
-      let articlesLoaded = false;
-      let waitAttempts = 0;
-      const maxAttempts = 10; // Try for up to 5 seconds (10 * 500ms)
-      
-      while (!articlesLoaded && waitAttempts < maxAttempts) {
-        await new Promise(r => setTimeout(r, 500));
+
+      if (linkExists) {
+        // Try clicking the link (more stable than goto)
+        await this.page.evaluate((userId) => {
+          const link = document.querySelector(`a[href*="/channels/@me/${userId}"]`);
+          if (link) link.click();
+        }, userId);
         
-        const articleCount = await this.page.evaluate(() => {
-          return document.querySelectorAll('[role="article"]').length;
-        });
+        logger.debug(`Clicked DM link in sidebar for ${userId}`);
+      } else {
+        // Fallback to direct navigation if link not in sidebar
+        logger.warn(`DM link not found in sidebar for ${userId}, using direct navigation`);
         
-        logger.debug(`Article check ${waitAttempts + 1}/${maxAttempts}: found ${articleCount} articles`);
-        
-        if (articleCount > 0) {
-          articlesLoaded = true;
-          logger.debug('Articles loaded successfully');
+        try {
+          await Promise.race([
+            this.page.goto(`https://discord.com/channels/@me/${userId}`, {
+              waitUntil: 'domcontentloaded',
+            }),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('DM navigation timeout')), 10000)
+            )
+          ]);
+        } catch (gotoError) {
+          logger.warn(`Direct navigation failed: ${gotoError.message}`);
+          if (retryCount < maxRetries) {
+            logger.warn(`Retrying DM open (${retryCount + 1}/${maxRetries})`);
+            await new Promise(r => setTimeout(r, 1500));
+            return this.openDM(userId, retryCount + 1, maxRetries);
+          }
+          throw gotoError;
         }
-        
-        waitAttempts++;
       }
+
+      // Wait for page to settle
+      await new Promise(r => setTimeout(r, 1000));
+
+      // CRITICAL: Wait for messages/articles to load
+      // This is where we detect if the page is stuck or didn't render
+      logger.debug('Waiting for message articles to load...');
       
-      // Debug: Check page status
-      const pageDebug = await this.page.evaluate(() => {
+      let messagesLoaded = false;
+      let waitAttempts = 0;
+      const maxWaitAttempts = 15; // 15 * 400ms = 6 seconds max wait
+      
+      while (!messagesLoaded && waitAttempts < maxWaitAttempts) {
+        try {
+          await new Promise(r => setTimeout(r, 400));
+          
+          const articleCount = await this.page.evaluate(() => {
+            return document.querySelectorAll('[role="article"]').length;
+          }).catch(err => {
+            logger.debug(`Article count check failed: ${err.message}`);
+            return 0;
+          });
+          
+          waitAttempts++;
+          
+          if (articleCount > 0) {
+            messagesLoaded = true;
+            logger.debug(`Messages loaded! Found ${articleCount} articles`);
+            break;
+          }
+          
+          if (waitAttempts % 3 === 0) {
+            logger.debug(`Waiting for messages... attempt ${waitAttempts}/${maxWaitAttempts}`);
+          }
+        } catch (checkError) {
+          logger.debug(`Error checking articles: ${checkError.message}`);
+          if (checkError.message.includes('Execution context')) {
+            logger.error('Execution context destroyed - page may be stuck');
+            // Return false to trigger browser recovery at higher level
+            return false;
+          }
+        }
+      }
+
+      // Check page status
+      const pageStatus = await this.page.evaluate(() => {
         return {
           title: document.title,
           url: window.location.href,
-          readyState: document.readyState,
           hasArticles: document.querySelectorAll('[role="article"]').length > 0,
-          articlesCount: document.querySelectorAll('[role="article"]').length,
-          hasChatArea: !!document.querySelector('[role="main"]'),
+          articleCount: document.querySelectorAll('[role="article"]').length,
         };
-      });
-      logger.debug(`openDM - Page status: ${JSON.stringify(pageDebug)}`);
-      
-      logger.info('Opened DM', { userId });
+      }).catch(() => ({}));
+
+      if (!messagesLoaded) {
+        logger.warn(`Page opened but articles not loading. Status: ${JSON.stringify(pageStatus)}`);
+        
+        // If messages never loaded after full wait period, this is a stuck state
+        if (retryCount < maxRetries) {
+          logger.warn(`Message load failed, retrying... (${retryCount + 1}/${maxRetries})`);
+          await new Promise(r => setTimeout(r, 2000));
+          return this.openDM(userId, retryCount + 1, maxRetries);
+        }
+      }
+
+      logger.info(`Successfully opened DM with ${userId}`);
       return true;
     } catch (error) {
-      logger.error('Failed to open DM', { error: error.message });
+      logger.error(`Failed to open DM ${userId}`, { error: error.message });
+      
+      // Special handling for Execution context errors
+      if (error.message.includes('Execution context')) {
+        logger.error('Execution context destroyed - browser may need restart');
+        return false;
+      }
+      
       return false;
     }
   }

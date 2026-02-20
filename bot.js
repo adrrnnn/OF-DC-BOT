@@ -239,16 +239,31 @@ class DiscordOFBot {
   }
 
   /**
-   * DM polling loop - checks for unread messages
+   * DM polling loop - checks for unread messages with health monitoring
    */
   startDMPolling() {
     this.messageCollectionTimer = new Map(); // Track collection timers per user
     let firstCheck = true; // Track if this is the first polling check
+    let healthCheckCounter = 0; // Counter to run health checks periodically (every 10 checks)
+    const HEALTH_CHECK_FREQUENCY = 10; // Run health check every 10 polling cycles
     
     this.dmPollingInterval = setInterval(async () => {
       try {
         if (!this.isRunning) {
           return;
+        }
+
+        // Periodic health check (every N polling cycles)
+        healthCheckCounter++;
+        if (healthCheckCounter >= HEALTH_CHECK_FREQUENCY) {
+          healthCheckCounter = 0;
+          const isHealthy = await this.browser.healthCheck();
+          
+          if (!isHealthy) {
+            logger.error('[HEALTH CHECK FAILED] Browser is not responding - attempting restart');
+            await this.restartBrowser();
+            return; // Skip this polling cycle, next cycle will retry
+          }
         }
 
         if (Date.now() - this.lastChecked < this.dmCheckInterval) {
@@ -346,6 +361,12 @@ class DiscordOFBot {
         }
       } catch (error) {
         logger.error('DM polling error: ' + error.message);
+        
+        // Special handling for execution context errors
+        if (error.message.includes('Execution context')) {
+          logger.error('[CRITICAL] Execution context destroyed - browser may be stuck');
+          // This will trigger on next health check
+        }
       }
     }, this.dmCheckInterval);
 
@@ -818,6 +839,69 @@ class DiscordOFBot {
     }, 10000); // 10 second wait
     
     this.messageCollectionTimer.set(userId, timerId);
+  }
+
+  /**
+   * Restart browser when it gets into a bad state
+   * Gracefully closes old browser and launches new one with login
+   */
+  async restartBrowser() {
+    logger.error('[BROWSER RECOVERY] Initiating browser restart...');
+    
+    try {
+      // Temporarily stop polling
+      if (this.dmPollingInterval) {
+        clearInterval(this.dmPollingInterval);
+        this.dmPollingInterval = null;
+      }
+      
+      // Close old browser
+      try {
+        logger.info('Closing old browser instance...');
+        await this.browser.close();
+        logger.info('Old browser closed');
+      } catch (err) {
+        logger.warn(`Error closing old browser: ${err.message}`);
+      }
+      
+      // Create new browser instance
+      logger.info('Launching new browser instance...');
+      this.browser = new BrowserController();
+      this.browser.setBot(this);
+      
+      const launched = await this.browser.launch();
+      if (!launched) {
+        throw new Error('Failed to launch new browser');
+      }
+      
+      logger.info('New browser launched, logging in...');
+      
+      // Re-login with stored cookies or fresh login
+      const cookiesLoaded = await this.browser.loadCookies();
+      if (cookiesLoaded) {
+        logger.info('Cookies loaded from disk, attempting auto-login...');
+        await this.browser.page.goto('https://discord.com/channels/@me', {
+          waitUntil: 'domcontentloaded',
+          timeout: 15000
+        }).catch(err => logger.warn(`Auto-login navigation failed: ${err.message}`));
+      } else {
+        logger.info('No cookies found, waiting for manual login...');
+        await this.browser.login(process.env.DISCORD_EMAIL, process.env.DISCORD_PASSWORD);
+      }
+      
+      logger.info('[BROWSER RECOVERY] Browser restart complete - resuming operations');
+      
+      // Resume polling
+      this.startDMPolling();
+      
+      return true;
+    } catch (error) {
+      logger.error(`[BROWSER RECOVERY FAILED] ${error.message}`);
+      logger.error('Bot may need manual restart');
+      // Attempt to restart polling anyway - next health check will catch it if still broken
+      this.startDMPolling();
+      return false;
+    }
   }
 
   /**

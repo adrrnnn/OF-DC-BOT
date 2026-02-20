@@ -23,16 +23,18 @@
     "messageCount": 1,
     "ofLinkSent": true
   },
-  "1473354173767745748": {
-    "startTime": 1771354454165,
+  "1473927580527890498": {
+    "startTime": 1771605679051,
+    "lastUserMessageTime": 1771605679051,
     "lastMessageId": null,
     "messageCount": 0,
     "ofLinkSent": false
   },
-  "1462031844764815391": {
-    "startTime": 1771590868720,
-    "lastMessageId": "oh okay",
-    "messageCount": 1,
+  "1473354173767745748": {
+    "startTime": 1771607148314,
+    "lastUserMessageTime": 1771607148314,
+    "lastMessageId": null,
+    "messageCount": 0,
     "ofLinkSent": false
   }
 }

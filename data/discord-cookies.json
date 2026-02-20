@@ -1,7 +1,7 @@
 [
   {
     "name": "_cfuvid",
-    "value": "MSAz0x6L4zlWWAK1DmZtlTj47gWgcn.XDgJ1T7aPpKg-1771590641.0510736-1.0.1.1-SugGcU.XhJFLJWoFzmH.iIlc.fzfg5QpxG9HaAGJ.L0",
+    "value": "TlpZ8hI9n8_hOUydHR5FR08wbKJpxCru3izGKtYiozQ-1771605656.7877984-1.0.1.1-iWnakNVMwlbJSBqBx8FdqhM5s0I.bFm12LpgRfBR6PE",
     "domain": ".discord.com",
     "path": "/",
     "expires": -1,
@@ -30,10 +30,10 @@
   },
   {
     "name": "__sdcfduid",
-    "value": "e0a2b8210e5711f192c23f80020be46ce6fda3c004749febf78c977c34899aefed1d53b0d34b8ce524eb43edf3f4a575",
+    "value": "e5c52ea10e7a11f1b1afe115f66ae536d51a99604e840f54a8ea87786e2c392098d1360255843d932e207b44588e5f02",
     "domain": "discord.com",
     "path": "/",
-    "expires": 1806150601.861468,
+    "expires": 1806165642.651554,
     "size": 106,
     "httpOnly": true,
     "secure": true,
@@ -45,10 +45,10 @@
   },
   {
     "name": "__dcfduid",
-    "value": "e0a2b8200e5711f192c23f80020be46c",
+    "value": "e5c52ea00e7a11f1b1afe115f66ae536",
     "domain": "discord.com",
     "path": "/",
-    "expires": 1806150601.861288,
+    "expires": 1806165642.651314,
     "size": 41,
     "httpOnly": true,
     "secure": true,
