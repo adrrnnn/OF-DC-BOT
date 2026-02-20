@@ -291,7 +291,26 @@ class DiscordOFBot {
             const hasUnread = await this.browser.checkDMHasUnreadMessages(dm.userId);
             if (hasUnread) {
               dmWithUnread = dm;
-              logger.info(`✓ Found unread message from ${dm.username || dm.userId}`);
+              
+              // Identify account type (test vs normal)
+              const username = dm.username || dm.userId;
+              const isTestAccount = this.testAccounts.includes(username.toLowerCase());
+              const accountType = isTestAccount ? '[TEST ACCOUNT]' : '[NORMAL ACCOUNT]';
+              
+              // Check conversation state
+              const isPermanentlyClosed = this.conversationManager.isPermanentlyClosed(dm.userId);
+              const ofLinkSent = this.conversationManager.hasOFLinkBeenSent(dm.userId);
+              
+              let stateInfo = '';
+              if (isPermanentlyClosed) {
+                stateInfo = '(CLOSED FOREVER)';
+              } else if (ofLinkSent) {
+                stateInfo = '(OF LINK SENT - AWAITING RESPONSE)';
+              } else {
+                stateInfo = '(ACTIVE)';
+              }
+              
+              logger.info(`✓ ${accountType} ${username} ${stateInfo} - Found unread message`);
               break;
             }
           }
@@ -601,14 +620,18 @@ class DiscordOFBot {
         return;
       }
 
+      // Identify account type for cycling logging
+      const isTestAccount = this.testAccounts.includes(extractedUsername.toLowerCase());
+      const accountType = isTestAccount ? '[TEST ACCOUNT]' : '[NORMAL ACCOUNT]';
+      logger.debug(`Account classification: ${accountType}`);
+
       // CRITICAL: Check if OF link was already sent to this user
       const ofLinkAlreadySent = this.conversationManager.hasOFLinkBeenSent(userId);
       const isPermanentlyClosed = this.conversationManager.isPermanentlyClosed(userId);
-      const isTestAccount = this.testAccounts.includes(extractedUsername.toLowerCase());
       
       // If permanently closed, never respond (hard stop)
       if (isPermanentlyClosed) {
-        logger.info(`Conversation with ${extractedUsername} is PERMANENTLY CLOSED - ignoring all messages`);
+        logger.info(`🔒 ${extractedUsername} conversation CLOSED FOREVER (OF link sent + closing response sent) - skipping all messages`);
         this.inConversationWith = null;
         return;
       }
@@ -633,7 +656,7 @@ class DiscordOFBot {
       
       if (ofLinkAlreadySent && !isTestAccount) {
         // Regular user - OF link sent and NOT refusing, conversation is DONE
-        logger.info(`OF link already sent to ${extractedUsername} (regular user) - conversation ended, not responding`);
+        logger.info(`🔗 OF link already sent to ${extractedUsername} (regular user) - conversation closed, not responding`);
         this.inConversationWith = null;
         return;
       }
