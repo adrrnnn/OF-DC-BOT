@@ -120,6 +120,11 @@ export class ConversationManager {
     }
   }
 
+  isPermanentlyClosed(userId) {
+    const conv = this.conversations.get(userId);
+    return conv ? conv.permanentlyClosed : false;
+  }
+
   getConversationState(userId) {
     const conv = this.conversations.get(userId);
     

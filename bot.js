@@ -589,10 +589,33 @@ class DiscordOFBot {
 
       // CRITICAL: Check if OF link was already sent to this user
       const ofLinkAlreadySent = this.conversationManager.hasOFLinkBeenSent(userId);
+      const isPermanentlyClosed = this.conversationManager.isPermanentlyClosed(userId);
       const isTestAccount = this.testAccounts.includes(extractedUsername.toLowerCase());
       
+      // If permanently closed, never respond (hard stop)
+      if (isPermanentlyClosed) {
+        logger.info(`Conversation with ${extractedUsername} is PERMANENTLY CLOSED - ignoring all messages`);
+        this.inConversationWith = null;
+        return;
+      }
+      
+      // OF link was sent and user is refusing - send ONE LAST RESPONSE then close forever
+      if (ofLinkAlreadySent && !isTestAccount && this.messageHandler.isRefusingOF(cleanMessageText)) {
+        logger.info(`🔗 User ${extractedUsername} refusing OF after link sent - sending final goodbye message`);
+        
+        // Send one final response
+        const finalMessage = this.messageHandler.getFinalGoodbyeMessage();
+        await this.browser.sendMessage(userId, finalMessage);
+        logger.info(`✅ Final response sent to ${extractedUsername}: "${finalMessage}"`);
+        
+        // Mark conversation as permanently closed
+        this.conversationManager.markPermanentlyClosed(userId);
+        this.inConversationWith = null;
+        return;
+      }
+      
       if (ofLinkAlreadySent && !isTestAccount) {
-        // Regular user - conversation is DONE, don't respond
+        // Regular user - OF link sent and NOT refusing, conversation is DONE
         logger.info(`OF link already sent to ${extractedUsername} (regular user) - conversation ended, not responding`);
         this.inConversationWith = null;
         return;
