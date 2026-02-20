@@ -164,11 +164,30 @@ export class MessageHandler {
         logger.info(`🔥 Sexual/explicit content detected from ${userId} - OF link trigger activated`);
       }
       
+      // Check if user is asking for social media/contact info (independent of template)
+      if (this.templateMatcher.isSocialMediaRequest(userMessage)) {
+        shouldSendLink = true;
+        logger.info(`\n=== STAGE 2: TRIGGERING OF LINK ===`);
+        logger.info(`🔗 Social media/contact request detected from ${userId} - OF link trigger activated`);
+      }
+      
       // Check if AI response mentions OF/OnlyFans
       if (response && this.mentionsOnlyFans(response)) {
         shouldSendLink = true;
         logger.info(`\n=== STAGE 2: TRIGGERING OF LINK ===`);
         logger.info(`🔗 AI response mentions OnlyFans for ${userId} - OF link trigger activated`);
+      }
+
+      // SAFEGUARD: Check if AI response leaked social media/contact info despite prompt
+      // This catches cases where AI ignores system prompt
+      const containsProhibitedContent = this.checkForProhibitedContent(response, userMessage);
+      if (containsProhibitedContent.found && match && match.sendLink) {
+        logger.warn(`⚠️  SAFEGUARD: AI response contains prohibited content: ${containsProhibitedContent.type}`);
+        logger.warn(`    Instead of: "${response}"`);
+        // Replace with template response to ensure safety
+        response = match.response || response;
+        logger.warn(`    Using template response: "${response}"`);
+        shouldSendLink = true; // Ensure OF link is sent
       }
 
       // Build final response with OF link if needed
@@ -218,6 +237,49 @@ export class MessageHandler {
     return Math.floor(
       Math.random() * (this.responseDelay.max - this.responseDelay.min) + this.responseDelay.min
     );
+  }
+
+  /**
+   * SAFEGUARD: Check if response contains prohibited content
+   * Returns { found: boolean, type: string } if prohibited content detected
+   */
+  checkForProhibitedContent(response, userMessage) {
+    if (!response) return { found: false };
+    
+    const lower = response.toLowerCase();
+    
+    // Check for social media handles (anything that looks like @username or instagram/snap/etc)
+    const socialMediaPatterns = [
+      /@[\w.]+/,  // @usernames
+      /instagram[:\s]+[\w.]+/i,
+      /snapchat[:\s]+[\w.]+/i,
+      /snap[:\s]+[\w.]+/i,
+      /tiktok[:\s]+[\w.]+/i,
+      /twitter[:\s]+[\w.]+/i,
+      /youtube[:\s]+[\w.]+/i,
+      // Phone numbers and emails
+      /\+?\d{1,3}[\s.-]?\d{1,4}[\s.-]?\d{1,4}[\s.-]?\d{1,9}/,
+      /[\w.]+@[\w.]+\.\w+/,
+      // "find me on" references
+      /find\s+(?:me|you)\s+on\s+\w+/i,
+      /check\s+(?:my|your)\s+(?:bio|profile|page)/i,
+      // Specific social platforms mentioned with intent to share
+      /(?:here'?s|here's)\s+(?:my|your)\s+(?:instagram|snap|twitter|tiktok|youtube)/i,
+      /\b(?:instagram|snapchat|tiktok|twitter|youtube|discord)\b.*(?:handle|account|username|@)/i
+    ];
+    
+    for (const pattern of socialMediaPatterns) {
+      if (pattern.test(lower)) {
+        logger.debug(`Detected pattern: ${pattern}`);
+        return { 
+          found: true, 
+          type: 'social_media_handle',
+          pattern: pattern.toString()
+        };
+      }
+    }
+    
+    return { found: false };
   }
 
   /**

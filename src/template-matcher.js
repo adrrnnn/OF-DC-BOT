@@ -325,6 +325,22 @@ REMEMBER: You are ${name}, ${age}, from ${location}. Answer their questions dire
     const lower = message.toLowerCase();
     return sexualKeywords.some(kw => lower.includes(kw));
   }
+  
+  /**
+   * Check if message is asking for social media/contact info
+   * These should be treated like redirect templates and send OF link
+   */
+  isSocialMediaRequest(message) {
+    const socialMediaKeywords = [
+      'snap', 'snapchat', 'instagram', 'insta', 'twitter', 'tiktok', 'youtube',
+      'phone', 'number', 'text me', 'dm me', 'email', 'contact',
+      'add me', 'find me', 'where are you', 'where can i find',
+      'your socials', 'socials',  'your handle', 'your username',
+      'bio', 'link', 'links', 'url', 'website', 'page'
+    ];
+    const lower = message.toLowerCase();
+    return socialMediaKeywords.some(kw => lower.includes(kw));
+  }
 
   /**
    * Get the OF link message with link inserted
