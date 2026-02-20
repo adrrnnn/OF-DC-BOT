@@ -491,12 +491,6 @@ class DiscordOFBot {
         return; // Don't respond during startup
       }
 
-      // STOP PROCESSING: If OF link already sent to this user, skip
-      if (this.closedConversations.has(userId)) {
-        logger.debug(`Skipping ${userId} - OF link already sent, conversation closed`);
-        return;
-      }
-
       // If username missing (happens when continuing conversation), extract from latest message
       if (!username && userId) {
         const messages = await this.browser.getMessagesWithRetry(1, 10, this.browser.botUsername, this.sentMessages);
@@ -738,7 +732,6 @@ class DiscordOFBot {
           // CRITICAL: Mark OF link as sent if this response includes it
           if (response.hasOFLink) {
             this.conversationManager.markOFLinkSent(userId);
-            this.closedConversations.add(userId); // CHEAP FIX: Stop processing this user entirely
             if (!isTestAccount) {
               logger.info(`🔗 OF link sent to regular user ${extractedUsername} - conversation closed`);
             } else {
