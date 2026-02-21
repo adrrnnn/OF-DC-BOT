@@ -25,6 +25,15 @@ dotenv.config();
  */
 class DiscordOFBot {
   constructor() {
+    // Define persistent state file location
+    this.dataDir = path.join(process.cwd(), 'data');
+    this.botStateFile = path.join(this.dataDir, 'bot-state.json');
+    
+    // Ensure data directory exists
+    if (!fs.existsSync(this.dataDir)) {
+      fs.mkdirSync(this.dataDir, { recursive: true });
+    }
+
     this.browser = new BrowserController();
     this.conversationManager = new ConversationManager();
     this.dmCacheManager = new DMCacheManager(); // NEW: Cache DM states
@@ -45,13 +54,94 @@ class DiscordOFBot {
     this.testAccounts = ['kuangg', 'noirpheus', 'rhynxprts']; // Test accounts - conversation resets on new greeting
     this.responsePending = {}; // Track which users have responses being sent
     this.closedConversations = new Set(); // Users with OF link sent - STOP responding
-    this.hasRepliedOnce = new Map(); // Track which users have received their first bot reply (enables conversation mode)
+    this.hasRepliedOnce = new Map(); // Track which users have received their first bot reply (enables conversation mode) [PERSISTED]
     this.messageCollectionTimer = new Map(); // Track message collection timers for multi-line messages
     this.articleQueues = new Map(); // Queue of new articles accumulated during 10-second wait per user
-    this.sentMessages = new Set(); // Track messages WE sent to avoid re-extracting them
-    this.lastSeenArticles = new Map(); // Track last article we extracted per user to detect new ones
+    this.sentMessages = new Set(); // Track messages WE sent to avoid re-extracting them [PERSISTED]
+    this.lastSeenArticles = new Map(); // Track last article we extracted per user to detect new ones [PERSISTED]
     this.pendingCombinedMessages = new Map(); // Store combined message waiting for processDM
     this.startupComplete = false; // Flag to prevent responding to old history on startup
+    
+    // Load persisted state on startup
+    this.loadBotState();
+  }
+
+  /**
+   * Load persistent bot state from disk
+   * Restores: hasRepliedOnce, lastSeenArticles, sentMessages
+   * This prevents re-processing old messages after bot restart
+   */
+  loadBotState() {
+    try {
+      if (fs.existsSync(this.botStateFile)) {
+        const state = JSON.parse(fs.readFileSync(this.botStateFile, 'utf8'));
+        
+        if (state.hasRepliedOnce && typeof state.hasRepliedOnce === 'object') {
+          this.hasRepliedOnce = new Map(Object.entries(state.hasRepliedOnce));
+          logger.debug(`Loaded hasRepliedOnce for ${this.hasRepliedOnce.size} users`);
+        }
+        
+        if (state.lastSeenArticles && typeof state.lastSeenArticles === 'object') {
+          this.lastSeenArticles = new Map(Object.entries(state.lastSeenArticles));
+          logger.debug(`Loaded lastSeenArticles for ${this.lastSeenArticles.size} users`);
+        }
+        
+        if (state.sentMessages && Array.isArray(state.sentMessages)) {
+          this.sentMessages = new Set(state.sentMessages);
+          logger.debug(`Loaded ${this.sentMessages.size} tracked sent messages`);
+        }
+        
+        logger.info('✅ Bot state restored from disk');
+      }
+    } catch (error) {
+      logger.warn(`Failed to load bot state: ${error.message} - starting with fresh state`);
+    }
+  }
+
+  /**
+   * Save persistent bot state to disk
+   * Preserves: hasRepliedOnce, lastSeenArticles, sentMessages
+   * This ensures state survives bot restarts
+   */
+  saveBotState() {
+    try {
+      const state = {
+        hasRepliedOnce: Object.fromEntries(this.hasRepliedOnce),
+        lastSeenArticles: Object.fromEntries(this.lastSeenArticles),
+        sentMessages: Array.from(this.sentMessages)
+      };
+      fs.writeFileSync(this.botStateFile, JSON.stringify(state, null, 2), 'utf8');
+    } catch (error) {
+      logger.warn(`Failed to save bot state: ${error.message}`);
+    }
+  }
+
+  /**
+   * Start periodic state saving (every 30 seconds)
+   * Ensures bot state survives crashes and restarts
+   */
+  startPeriodicStateSave() {
+    // Save state immediately
+    this.saveBotState();
+    
+    // Then save every 30 seconds
+    this.statesSaveInterval = setInterval(() => {
+      this.saveBotState();
+    }, 30000);
+    
+    logger.debug('Periodic state saving started (every 30 seconds)');
+  }
+
+  /**
+   * Stop periodic state saving and force final save
+   */
+  stopPeriodicStateSave() {
+    if (this.statesSaveInterval) {
+      clearInterval(this.statesSaveInterval);
+    }
+    // Force final save on shutdown
+    this.saveBotState();
+    logger.debug('State saved on shutdown');
   }
 
   /**
@@ -148,6 +238,9 @@ class DiscordOFBot {
       this.startDMPolling();
       logger.info('      [OK] Message polling active');
       logger.info('');
+
+      // Step 5b: Start periodic state save (preserve sentMessages, hasRepliedOnce, lastSeenArticles)
+      this.startPeriodicStateSave();
 
       logger.info('========================================');
       logger.info('   [OK] BOT STARTED SUCCESSFULLY');
@@ -930,6 +1023,9 @@ class DiscordOFBot {
       }
       this.messageCollectionTimer.clear();
     }
+
+    // Stop periodic state save and force final save
+    this.stopPeriodicStateSave();
 
     // Close browser
     this.browser.stopHealthCheck();
