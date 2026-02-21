@@ -67,6 +67,19 @@ class DiscordOFBot {
   }
 
   /**
+   * Normalize message content for comparison
+   * Handles multi-line messages, extra spaces, Discord formatting
+   * Used to detect sent messages and prevent re-extraction
+   */
+  normalizeMessageContent(msg) {
+    if (!msg) return '';
+    return msg
+      .replace(/\r?\n/g, ' ')  // Replace newlines with spaces
+      .replace(/\s+/g, ' ')     // Collapse multiple spaces
+      .trim();
+  }
+
+  /**
    * Load persistent bot state from disk
    * Restores: hasRepliedOnce, lastSeenArticles, sentMessages
    * This prevents re-processing old messages after bot restart
@@ -818,7 +831,12 @@ class DiscordOFBot {
           );
           
           // Track this message as one WE sent (so we don't extract it back later)
+          // Track both original and normalized versions to catch multi-line messages
           this.sentMessages.add(response.message);
+          const normalized = this.normalizeMessageContent(response.message);
+          if (normalized !== response.message) {
+            this.sentMessages.add(normalized);
+          }
           
           // CRITICAL: Mark this user as having received their first reply
           // This enables conversation mode (batching, multiple messages, etc.)

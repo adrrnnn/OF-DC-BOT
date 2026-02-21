@@ -764,11 +764,39 @@ export class BrowserController {
               // These prefixes appear when we extract our own messages
               const normalizedContent = content.replace(/^\[\s*\]\s*/, '').trim();
               
+              // Normalize content same way bot.js does: collapse spaces/newlines
+              const fullyNormalizedContent = content
+                .replace(/\r?\n/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+              const fullyNormalizedDirtyContent = normalizedContent
+                .replace(/\r?\n/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+              
               // Skip messages that WE (the bot) just sent
               // These can come back with author="dm_user" when we lose author attribution
-              // Must check BOTH the normalized version AND the raw content
+              // Check multiple normalized variants to catch multi-line messages
               if (sentMessages && Array.isArray(sentMessages) && sentMessages.length > 0) {
-                if (sentMessages.includes(content) || sentMessages.includes(normalizedContent)) {
+                let isOurMessage = false;
+                for (const sentMsg of sentMessages) {
+                  const sentNormalized = sentMsg
+                    .replace(/\r?\n/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+                  
+                  if (content === sentMsg || 
+                      normalizedContent === sentMsg ||
+                      fullyNormalizedContent === sentMsg ||
+                      fullyNormalizedContent === sentNormalized ||
+                      fullyNormalizedDirtyContent === sentMsg ||
+                      fullyNormalizedDirtyContent === sentNormalized) {
+                    isOurMessage = true;
+                    break;
+                  }
+                }
+                
+                if (isOurMessage) {
                   debug.errors.push('Message is from bot (in sentMessages), skipping');
                   processedCount++;
                   continue;
