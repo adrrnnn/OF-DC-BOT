@@ -22,6 +22,13 @@ export class BrowserController {
     this.healthCheckInterval = null;
     this.healthCheckCallback = null;
     this.bot = null;
+    
+    // Session restart tracking (production durability)
+    this.operationCount = 0;
+    this.sessionStartTime = null;
+    this.maxOperationsPerSession = 150;  // Restart after 150 operations
+    this.maxSessionDurationMs = 90 * 60 * 1000;  // 90 minutes - stays ahead of 2hr degradation
+    this.isRestarting = false;  // Flag to prevent concurrent restart attempts
   }
 
   /**
@@ -66,6 +73,9 @@ export class BrowserController {
 
       // Add event listeners for monitoring (based on production best practices)
       this.setupBrowserMonitoring();
+
+      // Initialize session tracking (production durability)
+      this.resetSessionTracking();
 
       logger.info('Browser launched with stability monitoring');
       return true;
@@ -997,6 +1007,145 @@ export class BrowserController {
     } catch (error) {
       logger.debug('Failed to get message count', { error: error.message });
       return 0;
+    }
+  }
+
+  /**
+   * Reset session tracking counters after browser initialization
+   */
+  resetSessionTracking() {
+    this.operationCount = 0;
+    this.sessionStartTime = Date.now();
+    logger.debug('Session tracking reset - new session started');
+  }
+
+  /**
+   * Increment operation counter and check if restart needed
+   * Call this after each DM check or message operation
+   * (Stays ahead of 2-hour failure by restarting at 90 minutes)
+   */
+  async checkAndRestartIfNeeded() {
+    // Prevent concurrent restart attempts
+    if (this.isRestarting) {
+      logger.debug('Restart already in progress, skipping check');
+      return;
+    }
+
+    this.operationCount++;
+    const elapsedMs = Date.now() - this.sessionStartTime;
+    const elapsedMins = Math.round(elapsedMs / 60000);
+
+    // Check both operation count and time-based restart conditions
+    const operationThresholdHit = this.operationCount >= this.maxOperationsPerSession;
+    const timeThresholdHit = elapsedMs >= this.maxSessionDurationMs;
+
+    if (operationThresholdHit || timeThresholdHit) {
+      logger.info(
+        `Session restart triggered | ops: ${this.operationCount}/${this.maxOperationsPerSession} | ` +
+        `time: ${elapsedMins}mins/${Math.round(this.maxSessionDurationMs / 60000)}mins | ` +
+        `reason: ${operationThresholdHit ? 'operation count' : 'time limit'}`
+      );
+      
+      await this.restart();
+    } else if (this.operationCount % 50 === 0) {
+      // Log progress every 50 operations
+      logger.debug(
+        `Session health | ops: ${this.operationCount}/${this.maxOperationsPerSession} | ` +
+        `time: ${elapsedMins}mins`
+      );
+    }
+  }
+
+  /**
+   * Gracefully restart browser session with cached cookies
+   * Closes current browser and reinitializes with Discord authentication preserved
+   */
+  async restart() {
+    if (this.isRestarting) {
+      logger.warn('Restart already in progress');
+      return;
+    }
+
+    this.isRestarting = true;
+    const startTime = Date.now();
+
+    try {
+      logger.info('Starting graceful session restart...');
+
+      // Step 1: Close existing browser
+      if (this.browser) {
+        try {
+          await this.browser.close();
+          logger.debug('Previous browser instance closed');
+        } catch (error) {
+          logger.warn('Error closing browser', { error: error.message });
+        }
+      }
+
+      // Step 2: Reset state
+      this.browser = null;
+      this.page = null;
+
+      // Step 3: Relaunch browser
+      const launchSuccess = await this.launch();
+      if (!launchSuccess) {
+        throw new Error('Browser relaunch failed');
+      }
+
+      // Step 4: Restore cookies (instant reconnection)
+      logger.debug('Restoring Discord session from cached cookies...');
+      const cookiesLoaded = await this.loadCookies();
+      
+      if (!cookiesLoaded) {
+        logger.error('No cached cookies found - will require fresh login');
+        // Note: If no cookies, caller should handle fresh login
+        this.isLoggedIn = false;
+      } else {
+        // Step 5: Navigate to Discord with cookies
+        try {
+          await this.page.goto('https://discord.com/channels/@me', {
+            waitUntil: 'domcontentloaded',
+          });
+          
+          // Verify we're actually logged in
+          const isAuthenticated = await this.page.evaluate(() => {
+            return document.querySelector('[class*="guilds"]') !== null;
+          });
+
+          if (isAuthenticated) {
+            this.isLoggedIn = true;
+            logger.info('Discord session restored from cookies');
+          } else {
+            logger.warn('Cookie restore failed - user not authenticated');
+            this.isLoggedIn = false;
+          }
+        } catch (navError) {
+          logger.error('Failed to navigate after cookie restore', {
+            error: navError.message
+          });
+          this.isLoggedIn = false;
+        }
+      }
+
+      // Step 6: Reset session tracking
+      this.resetSessionTracking();
+
+      const restartDuration = Date.now() - startTime;
+      logger.info(
+        `Session restart completed successfully | ` +
+        `duration: ${restartDuration}ms | ` +
+        `new session started`
+      );
+
+    } catch (error) {
+      logger.error('Session restart failed', {
+        error: error.message,
+        duration: Date.now() - startTime
+      });
+      // Set flag to indicate restart failed - caller should handle
+      this.isLoggedIn = false;
+    } finally {
+      this.isRestarting = false;
     }
   }
 }

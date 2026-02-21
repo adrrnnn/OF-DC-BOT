@@ -359,6 +359,11 @@ class DiscordOFBot {
             logger.info('[Startup] First polling check complete (no unread DMs) - now accepting new messages');
           }
         }
+
+        // Production durability: Check if session restart needed
+        // (Every 150 operations or 90 minutes - stays ahead of 2-hour browser degradation)
+        await this.browser.checkAndRestartIfNeeded();
+
       } catch (error) {
         logger.error('DM polling error: ' + error.message);
         
