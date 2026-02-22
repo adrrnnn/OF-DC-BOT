@@ -59,8 +59,8 @@ echo       [OK] npm is installed
 echo.
 
 echo [3/3] Checking dependencies...
-if not exist "node_modules\" (
-    echo       MISSING - Installing now...
+if not exist "node_modules\dotenv\" (
+    echo       MISSING or INCOMPLETE - Installing now...
     call npm install
     if %ERRORLEVEL% NEQ 0 (
         echo       ERROR: npm install failed
