@@ -30,16 +30,21 @@ echo.
 echo [1/3] Checking Node.js...
 where node >nul 2>&1
 if %ERRORLEVEL% NEQ 0 (
-    echo       NOT FOUND - Auto-downloading Node.js LTS...
+    echo       NOT FOUND - Installing Node.js via winget...
     echo.
-    powershell -NoProfile -Command "$url='https://nodejs.org/dist/v20.10.0/node-v20.10.0-x64.msi'; $out=[System.IO.Path]::GetTempPath()+'node-installer.msi'; Write-Host 'Downloading Node.js...'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile($url,$out); Write-Host 'Installing...'; Start-Process -FilePath $out -ArgumentList '/quiet' -Wait; Remove-Item $out -Force 2>$null; Write-Host 'Done.'"
+    winget install OpenJS.NodeJS.LTS --silent --accept-package-agreements --accept-source-agreements
     if %ERRORLEVEL% NEQ 0 (
-        echo       ERROR: Download failed. Install manually: https://nodejs.org/
+        echo.
+        echo       ERROR: Auto-install failed.
+        echo       Please manually install Node.js from: https://nodejs.org/
+        echo       Then re-run this script.
         echo.
         pause
         goto END
     )
-    echo       [OK] Node.js installed - please close and re-run this script
+    echo.
+    echo       [OK] Node.js installed successfully!
+    echo       Please close this window and re-run start.bat
     echo.
     pause
     goto END

@@ -1,4 +1,4 @@
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-core';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -43,8 +43,21 @@ export class BrowserController {
    */
   async launch() {
     try {
+      // Find Edge or Chrome executable (puppeteer-core requires explicit path)
+      const edgePaths = [
+        'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+        'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+      ];
+      const executablePath = edgePaths.find(p => fs.existsSync(p));
+      if (!executablePath) {
+        throw new Error('No browser found. Please ensure Microsoft Edge or Google Chrome is installed.');
+      }
+
       this.browser = await puppeteer.launch({
         headless: false,
+        executablePath,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
