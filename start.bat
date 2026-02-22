@@ -1,9 +1,10 @@
 @echo off
 setlocal enabledelayedexpansion
 title Discord OnlyFans Bot
-color 0A
 
 cd /d "%~dp0"
+echo Bot directory: %cd%
+pause
 
 REM Check if bot is already running
 tasklist /FI "IMAGENAME eq node.exe" 2>NUL | find /I "node.exe" >NUL
@@ -29,6 +30,9 @@ echo   Production Ready
 echo ========================================
 echo.
 echo Initializing setup...
+echo.
+pause
+echo Setup starting...
 echo.
 
 echo [1/3] Checking Node.js...
