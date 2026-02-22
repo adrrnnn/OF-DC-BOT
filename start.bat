@@ -4,19 +4,11 @@ title Discord OnlyFans Bot
 cd /d "%~dp0"
 color 0A
 
-REM Check if bot is already running
+REM Kill any leftover node.exe processes from previous runs
 tasklist /FI "IMAGENAME eq node.exe" 2>NUL | find /I "node.exe" >NUL
 if %ERRORLEVEL% EQU 0 (
-    echo.
-    echo ========================================
-    echo   Bot is already running!
-    echo ========================================
-    echo.
-    echo Double-click start.bat again to continue
-    echo or close this window
-    echo.
-    pause
-    exit /b
+    taskkill /FI "IMAGENAME eq node.exe" /F >NUL 2>&1
+    timeout /t 1 /nobreak >NUL
 )
 
 :MAIN_START
