@@ -142,15 +142,19 @@ echo [1] Configure Discord Account
 echo [2] Change OF_LINK
 echo [3] Select Profile
 echo [4] Start Bot
-echo [5] Exit
+echo [5] Reset Bot (clear data/accounts/logs)
+echo [6] Delete Everything (IRREVERSIBLE)
+echo [7] Exit
 echo.
-set /p choice="Enter choice (1-5): "
+set /p choice="Enter choice (1-7): "
 
 if "%choice%"=="1" goto CONFIGURE_ACCOUNT
 if "%choice%"=="2" goto CHANGE_OF_LINK
 if "%choice%"=="3" goto SELECT_PROFILE
 if "%choice%"=="4" goto START_BOT
-if "%choice%"=="5" goto END
+if "%choice%"=="5" goto RESET_BOT
+if "%choice%"=="6" goto DELETE_EVERYTHING
+if "%choice%"=="7" goto END
 echo Invalid choice. Try again.
 pause
 goto MAIN_MENU
@@ -575,6 +579,186 @@ if "%choice%"=="2" goto END
 echo Invalid choice. Try again.
 pause
 goto START_BOT
+
+:RESET_BOT
+cls
+echo.
+echo ========================================
+echo   RESET BOT - CLEAR DATA
+echo ========================================
+echo.
+echo WARNING: This will delete:
+echo   - All saved accounts (config/accounts.json)
+echo   - All saved data (data/ folder)
+echo   - All logs (logs/ folder)
+echo   - All cached information
+echo.
+echo The bot code will remain intact.
+echo You will need to set up a fresh account after reset.
+echo.
+set /p confirm="Are you sure? (yes/no): "
+
+if /i "%confirm%"=="yes" (
+    echo.
+    echo Type 'reset' exactly to confirm this action:
+    set /p typereset=">>> "
+    
+    if "%typereset%"=="reset" (
+        cls
+        echo.
+        echo ========================================
+        echo   RESETTING BOT...
+        echo ========================================
+        echo.
+        
+        REM Stop any running node processes
+        taskkill /FI "IMAGENAME eq node.exe" /F 2>NUL
+        
+        echo Clearing accounts database...
+        if exist "config\accounts.json" del "config\accounts.json" 2>NUL
+        
+        echo Clearing saved data and cache...
+        if exist "data\" rmdir /s /q "data\" 2>NUL
+        
+        echo Clearing logs...
+        if exist "logs\" rmdir /s /q "logs\" 2>NUL
+        
+        echo Clearing bot state...
+        if exist "bot-state.json" del "bot-state.json" 2>NUL
+        
+        echo Clearing Discord cookies...
+        if exist "data\discord-cookies.json" del "data\discord-cookies.json" 2>NUL
+        
+        echo.
+        echo ========================================
+        echo   RESET COMPLETE
+        echo ========================================
+        echo.
+        echo All data has been cleared.
+        echo You can now set up a fresh account.
+        echo.
+        pause
+        goto MAIN_MENU
+    ) else (
+        cls
+        echo.
+        echo ========================================
+        echo   RESET CANCELLED
+        echo ========================================
+        echo.
+        echo You did not type 'reset' correctly.
+        echo Returning to main menu...
+        echo.
+        pause
+        goto MAIN_MENU
+    )
+) else (
+    cls
+    echo.
+    echo ========================================
+    echo   RESET CANCELLED
+    echo ========================================
+    echo.
+    echo Reset operation cancelled.
+    echo.
+    pause
+    goto MAIN_MENU
+)
+
+:DELETE_EVERYTHING
+cls
+echo.
+echo ========================================
+echo   DELETE EVERYTHING - IRREVERSIBLE
+echo ========================================
+echo.
+echo WARNING: This will permanently delete:
+echo   - All bot configuration (.env)
+echo   - All saved data (config/, data/)
+echo   - All logs
+echo   - All source code (src/, scripts/)
+echo   - All node_modules
+echo   - ALL OTHER FILES IN THIS FOLDER
+echo.
+echo This action CANNOT be undone!
+echo.
+set /p confirm="Are you sure? (yes/no): "
+
+if /i "%confirm%"=="yes" (
+    echo.
+    echo Type 'delete' exactly to confirm permanent deletion:
+    set /p typedelete=">>> "
+    
+    if "%typedelete%"=="delete" (
+        cls
+        echo.
+        echo ========================================
+        echo   DELETING ENTIRE SYSTEM...
+        echo ========================================
+        echo.
+        
+        REM Stop any running node processes
+        taskkill /FI "IMAGENAME eq node.exe" /F 2>NUL
+        
+        REM Delete all critical folders
+        echo Deleting configuration...
+        if exist "config\" rmdir /s /q "config\" 2>NUL
+        
+        echo Deleting saved data...
+        if exist "data\" rmdir /s /q "data\" 2>NUL
+        
+        echo Deleting logs...
+        if exist "logs\" rmdir /s /q "logs\" 2>NUL
+        
+        echo Deleting source code...
+        if exist "src\" rmdir /s /q "src\" 2>NUL
+        if exist "scripts\" rmdir /s /q "scripts\" 2>NUL
+        
+        echo Deleting dependencies...
+        if exist "node_modules\" rmdir /s /q "node_modules\" 2>NUL
+        
+        echo Deleting environment file...
+        if exist ".env" del ".env" 2>NUL
+        
+        echo Deleting bot state...
+        if exist "bot-state.json" del "bot-state.json" 2>NUL
+        
+        echo.
+        echo ========================================
+        echo   DELETION COMPLETE
+        echo ========================================
+        echo.
+        echo All bot files have been permanently deleted.
+        echo.
+        echo You can re-run start.bat to set up a fresh bot.
+        echo.
+        pause
+        goto MAIN_START
+    ) else (
+        cls
+        echo.
+        echo ========================================
+        echo   DELETION CANCELLED
+        echo ========================================
+        echo.
+        echo You did not type 'delete' correctly.
+        echo Returning to main menu...
+        echo.
+        pause
+        goto MAIN_MENU
+    )
+) else (
+    cls
+    echo.
+    echo ========================================
+    echo   DELETION CANCELLED
+    echo ========================================
+    echo.
+    echo Delete operation cancelled.
+    echo.
+    pause
+    goto MAIN_MENU
+)
 
 :END
 echo.
