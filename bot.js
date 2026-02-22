@@ -425,7 +425,6 @@ class DiscordOFBot {
 
         if (activeUnreadDMs.length > 0) {
           logger.info(`Found ${activeUnreadDMs.length} unread DM(s)`);
-          this.idleManager.signalActivity(); // Signal activity - switch to ACTIVE polling
 
           // Check each DM to find which one has actual unread messages
           let dmWithUnread = null;
@@ -715,6 +714,9 @@ class DiscordOFBot {
         this.inConversationWith = null;
         return;
       }
+
+      // REAL ACTIVITY: User message detected - signal activity to switch bot to ACTIVE polling
+      this.idleManager.signalActivity();
 
       // Extract clean message text without timestamps for deduplication
       // Discord messages include various formats with timestamps and dates
