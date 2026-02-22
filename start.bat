@@ -3,34 +3,21 @@ setlocal enabledelayedexpansion
 title Discord OnlyFans Bot
 color 0A
 
-echo Starting bot setup...
-pause
-
 cd /d "%~dp0"
-
-REM Check if directory change worked
-if %ERRORLEVEL% NEQ 0 (
-    echo.
-    echo ERROR: Could not navigate to bot directory!
-    echo Current directory: %cd%
-    echo.
-    pause
-    exit /b 1
-)
 
 REM Check if bot is already running
 tasklist /FI "IMAGENAME eq node.exe" 2>NUL | find /I "node.exe" >NUL
 if %ERRORLEVEL% EQU 0 (
+    cls
     echo.
     echo ========================================
     echo   Bot is already running!
     echo ========================================
     echo.
-    echo Double-click start.bat again to continue
-    echo or close this window
+    echo Close the other bot window first.
     echo.
     pause
-    exit /b
+    exit /b 0
 )
 
 :MAIN_START
