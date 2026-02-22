@@ -1,10 +1,9 @@
 @echo off
 setlocal enabledelayedexpansion
 title Discord OnlyFans Bot
+color 0A
 
 cd /d "%~dp0"
-echo Bot directory: %cd%
-pause
 
 REM Check if bot is already running
 tasklist /FI "IMAGENAME eq node.exe" 2>NUL | find /I "node.exe" >NUL
@@ -31,20 +30,17 @@ echo ========================================
 echo.
 echo Initializing setup...
 echo.
-pause
-echo Setup starting...
-echo.
 
 echo [1/3] Checking Node.js...
 where node >nul 2>&1
 if %ERRORLEVEL% EQU 0 (
     echo       [OK] Node.js is installed
 ) else (
-    echo       NOT FOUND - Node.js is required
+    echo       [ERROR] Node.js is required but not found
+    echo.
     pause
     goto END
 )
-echo       [OK] Node.js is installed
 echo.
 
 echo [2/3] Checking npm...
@@ -97,19 +93,16 @@ echo ========================================
 echo   All dependencies confirmed!
 echo ========================================
 echo.
-pause
 
 if not exist ".env" (
     echo.
-    echo [ERROR] No Discord account found!
+    echo [INFO] Setting up first Discord account...
     echo.
-    pause
     goto SETUP_NEW_ACCOUNT
 ) else (
     echo.
     echo [OK] Discord account found
     echo.
-    pause
     goto MAIN_MENU
 )
 
@@ -155,7 +148,6 @@ echo RESPONSE_DELAY_MAX=3000
 echo.
 echo [OK] Discord account saved!
 echo.
-pause
 goto MAIN_MENU
 
 :MAIN_MENU
@@ -790,4 +782,4 @@ if /i "%confirm%"=="yes" (
 :END
 echo.
 echo Press any key to exit...
-pause >nul
+pause
