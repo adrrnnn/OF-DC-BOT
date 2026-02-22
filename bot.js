@@ -5,6 +5,7 @@ import { ConversationManager } from './src/conversation-manager.js';
 import { DMCacheManager } from './src/dm-cache-manager.js';
 import { ProfileLoader } from './src/profile-loader.js';
 import { IdleManager } from './src/idle-manager.js';
+import { MemoryManager } from './src/memory-manager.js';
 import { logger } from './src/logger.js';
 import fs from 'fs';
 import path from 'path';
@@ -41,6 +42,7 @@ class DiscordOFBot {
     this.profileLoader = new ProfileLoader(); // Load active profile
     this.messageHandler = new MessageHandler(this.conversationManager, this.profileLoader.activeProfile);
     this.idleManager = new IdleManager(); // NEW: Manage polling idle/active states
+    this.memoryManager = new MemoryManager(); // NEW: Monitor memory and trigger proactive reloads
     this.isRunning = false;
     this.dmCheckInterval = 60000; // Default, will be overridden in start()
     this.lastChecked = 0;
@@ -254,6 +256,15 @@ class DiscordOFBot {
       this.idleManager.startMonitoring(this.browser.page);
       this.idleManager.startKeepAlive(this.browser.page);
       logger.info('      [OK] Idle mode active (60s polling, 5s when active)');
+      logger.info('');
+
+      // Step 4c: Initialize memory monitoring (proactive refresh to prevent OOM crashes)
+      logger.info('[4c/5] Initializing memory monitoring...');
+      this.memoryManager.start(this.browser.page, async () => {
+        logger.warn('[MEMORY] 🔄 Triggering proactive page reload...');
+        await this.browser.reloadPage('memory threshold or 45-min refresh');
+      });
+      logger.info('      [OK] Memory monitoring active (threshold: 1.2GB, periodic: 45min)');
       logger.info('');
 
       // Step 5: Start DM polling loop
@@ -1074,6 +1085,9 @@ class DiscordOFBot {
 
     // Stop idle manager
     this.idleManager.cleanup();
+
+    // Stop memory manager
+    this.memoryManager.cleanup();
 
     // Close browser
     this.browser.stopHealthCheck();
