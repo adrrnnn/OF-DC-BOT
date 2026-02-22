@@ -1,46 +1,50 @@
 @echo off
 setlocal enabledelayedexpansion
 title Discord OnlyFans Bot
-color 0A
-
 cd /d "%~dp0"
+color 0A
 
 REM Check if bot is already running
 tasklist /FI "IMAGENAME eq node.exe" 2>NUL | find /I "node.exe" >NUL
 if %ERRORLEVEL% EQU 0 (
-    cls
     echo.
     echo ========================================
     echo   Bot is already running!
     echo ========================================
     echo.
-    echo Close the other bot window first.
+    echo Double-click start.bat again to continue
+    echo or close this window
     echo.
     pause
-    exit /b 0
+    exit /b
 )
 
 :MAIN_START
 cls
 echo.
 echo ========================================
-echo   Discord OnlyFans Bot v4.5
-echo   Production Ready
+echo   Discord OnlyFans Bot
 echo ========================================
-echo.
-echo Initializing setup...
 echo.
 
 echo [1/3] Checking Node.js...
 where node >nul 2>&1
-if %ERRORLEVEL% EQU 0 (
-    echo       [OK] Node.js is installed
-) else (
-    echo       [ERROR] Node.js is required but not found
+if %ERRORLEVEL% NEQ 0 (
+    echo       NOT FOUND - Auto-downloading Node.js LTS...
+    echo.
+    powershell -NoProfile -Command "$url='https://nodejs.org/dist/v20.10.0/node-v20.10.0-x64.msi'; $out=[System.IO.Path]::GetTempPath()+'node-installer.msi'; Write-Host 'Downloading Node.js...'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile($url,$out); Write-Host 'Installing...'; Start-Process -FilePath $out -ArgumentList '/quiet' -Wait; Remove-Item $out -Force 2>$null; Write-Host 'Done.'"
+    if %ERRORLEVEL% NEQ 0 (
+        echo       ERROR: Download failed. Install manually: https://nodejs.org/
+        echo.
+        pause
+        goto END
+    )
+    echo       [OK] Node.js installed - please close and re-run this script
     echo.
     pause
     goto END
 )
+echo       [OK] Node.js is installed
 echo.
 
 echo [2/3] Checking npm...
@@ -56,34 +60,15 @@ echo.
 
 echo [3/3] Checking dependencies...
 if not exist "node_modules\" (
-    echo       MISSING - Installing now (this may take 5-10 minutes)...
-    echo       Downloading Puppeteer and other packages...
-    echo.
-    
-    REM Run npm install with longer timeout and show output
-    call npm install --verbose
-    
-    REM Verify installation succeeded
+    echo       MISSING - Installing now...
+    call npm install
     if %ERRORLEVEL% NEQ 0 (
-        echo.
-        echo       WARNING: npm install returned an error, but checking packages...
-    )
-    
-    REM Double-check critical packages exist
-    if not exist "node_modules\puppeteer\" (
-        echo       ERROR: Puppeteer not installed
+        echo       ERROR: npm install failed
         echo.
         pause
         goto END
     )
-    if not exist "node_modules\dotenv\" (
-        echo       ERROR: dotenv not installed
-        echo.
-        pause
-        goto END
-    )
-    
-    echo       [OK] Dependencies verified and installed
+    echo       [OK] Dependencies installed
 ) else (
     echo       [OK] Dependencies already installed
 )
@@ -94,17 +79,8 @@ echo   All dependencies confirmed!
 echo ========================================
 echo.
 
-if not exist ".env" (
-    echo.
-    echo [INFO] Setting up first Discord account...
-    echo.
-    goto SETUP_NEW_ACCOUNT
-) else (
-    echo.
-    echo [OK] Discord account found
-    echo.
-    goto MAIN_MENU
-)
+if not exist ".env" goto SETUP_NEW_ACCOUNT
+goto MAIN_MENU
 
 :SETUP_NEW_ACCOUNT
 cls
@@ -148,6 +124,7 @@ echo RESPONSE_DELAY_MAX=3000
 echo.
 echo [OK] Discord account saved!
 echo.
+pause
 goto MAIN_MENU
 
 :MAIN_MENU
@@ -782,4 +759,4 @@ if /i "%confirm%"=="yes" (
 :END
 echo.
 echo Press any key to exit...
-pause
+pause >nul
