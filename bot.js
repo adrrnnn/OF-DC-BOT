@@ -413,14 +413,23 @@ class DiscordOFBot {
 
         // Get unread DMs
         const unreadDMs = await this.browser.getUnreadDMs();
+        
+        // FILTER: Remove permanently closed conversations from processing list
+        const activeUnreadDMs = unreadDMs.filter(dm => {
+          const isPermanentlyClosed = this.conversationManager.isPermanentlyClosed(dm.userId);
+          if (isPermanentlyClosed) {
+            logger.debug(`Skipping permanently closed conversation: ${dm.username || dm.userId}`);
+          }
+          return !isPermanentlyClosed;
+        });
 
-        if (unreadDMs.length > 0) {
-          logger.info(`Found ${unreadDMs.length} unread DM(s)`);
+        if (activeUnreadDMs.length > 0) {
+          logger.info(`Found ${activeUnreadDMs.length} unread DM(s)`);
           this.idleManager.signalActivity(); // Signal activity - switch to ACTIVE polling
 
           // Check each DM to find which one has actual unread messages
           let dmWithUnread = null;
-          for (const dm of unreadDMs) {
+          for (const dm of activeUnreadDMs) {
             const hasUnread = await this.browser.checkDMHasUnreadMessages(dm.userId);
             if (hasUnread) {
               dmWithUnread = dm;
@@ -451,9 +460,11 @@ class DiscordOFBot {
           // Process the DM with unread, or first in list as fallback
           if (dmWithUnread) {
             await this.processDM(dmWithUnread);
-          } else {
+          } else if (activeUnreadDMs.length > 0) {
             logger.debug(`No DMs with confirmed unread, processing first in list`);
-            await this.processDM(unreadDMs[0]);
+            await this.processDM(activeUnreadDMs[0]);
+          } else {
+            logger.debug(`All active DMs have been processed or closed (no fallback available)`);
           }
             
             // After first check completes, mark startup as complete
