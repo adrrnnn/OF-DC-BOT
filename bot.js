@@ -4,6 +4,7 @@ import { MessageHandler } from './src/message-handler.js';
 import { ConversationManager } from './src/conversation-manager.js';
 import { DMCacheManager } from './src/dm-cache-manager.js';
 import { ProfileLoader } from './src/profile-loader.js';
+import { IdleManager } from './src/idle-manager.js';
 import { logger } from './src/logger.js';
 import fs from 'fs';
 import path from 'path';
@@ -39,6 +40,7 @@ class DiscordOFBot {
     this.dmCacheManager = new DMCacheManager(); // NEW: Cache DM states
     this.profileLoader = new ProfileLoader(); // Load active profile
     this.messageHandler = new MessageHandler(this.conversationManager, this.profileLoader.activeProfile);
+    this.idleManager = new IdleManager(); // NEW: Manage polling idle/active states
     this.isRunning = false;
     this.dmCheckInterval = 60000; // Default, will be overridden in start()
     this.lastChecked = 0;
@@ -246,6 +248,14 @@ class DiscordOFBot {
       logger.info('      [OK] Health checks active');
       logger.info('');
 
+      // Step 4b: Initialize idle/active mode manager
+      logger.info('[4b/5] Initializing idle mode management...');
+      this.idleManager.initializeObserver(this.browser.page);
+      this.idleManager.startMonitoring(this.browser.page);
+      this.idleManager.startKeepAlive(this.browser.page);
+      logger.info('      [OK] Idle mode active (60s polling, 5s when active)');
+      logger.info('');
+
       // Step 5: Start DM polling loop
       logger.info('[5/5] Starting message polling...');
       this.startDMPolling();
@@ -372,7 +382,7 @@ class DiscordOFBot {
           }
         }
 
-        if (Date.now() - this.lastChecked < this.dmCheckInterval) {
+        if (Date.now() - this.lastChecked < this.idleManager.getPollingInterval()) {
           return;
         }
 
@@ -394,6 +404,7 @@ class DiscordOFBot {
             if (hasNewMessages) {
               // New message from the user we're talking to
               // START COLLECTION TIMER: Wait a bit for more lines before responding
+              this.idleManager.signalActivity(); // Signal activity - switch to ACTIVE polling
               this.startMessageCollectionTimer(dm);
             }
             return; // Don't check other DMs while in conversation
@@ -405,6 +416,7 @@ class DiscordOFBot {
 
         if (unreadDMs.length > 0) {
           logger.info(`Found ${unreadDMs.length} unread DM(s)`);
+          this.idleManager.signalActivity(); // Signal activity - switch to ACTIVE polling
 
           // Check each DM to find which one has actual unread messages
           let dmWithUnread = null;
@@ -830,6 +842,8 @@ class DiscordOFBot {
             `✅ Response sent to ${extractedUsername} (source: ${response.source}, hasOFLink: ${response.hasOFLink})`
           );
           
+          this.idleManager.setActive(); // Keep bot in ACTIVE mode after sending response
+          
           // Track this message as one WE sent (so we don't extract it back later)
           // Track both original and normalized versions to catch multi-line messages
           this.sentMessages.add(response.message);
@@ -1044,6 +1058,9 @@ class DiscordOFBot {
 
     // Stop periodic state save and force final save
     this.stopPeriodicStateSave();
+
+    // Stop idle manager
+    this.idleManager.cleanup();
 
     // Close browser
     this.browser.stopHealthCheck();
