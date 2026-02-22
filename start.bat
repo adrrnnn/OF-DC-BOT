@@ -73,6 +73,7 @@ if not exist "node_modules\dotenv\" (
 ) else (
     echo       [OK] Dependencies already installed
 )
+color 0A
 echo.
 
 echo ========================================
@@ -143,17 +144,14 @@ echo [5] Reset Bot (clear data/accounts/logs)
 echo [6] Delete Everything (IRREVERSIBLE)
 echo [7] Exit
 echo.
-set /p choice="Enter choice (1-7): "
-
-if "%choice%"=="1" goto CONFIGURE_ACCOUNT
-if "%choice%"=="2" goto CHANGE_OF_LINK
-if "%choice%"=="3" goto SELECT_PROFILE
-if "%choice%"=="4" goto START_BOT
-if "%choice%"=="5" goto RESET_BOT
-if "%choice%"=="6" goto DELETE_EVERYTHING
-if "%choice%"=="7" goto END
-echo Invalid choice. Try again.
-pause
+choice /C 1234567 /N /M "Enter choice (1-7): "
+if %ERRORLEVEL% EQU 1 goto CONFIGURE_ACCOUNT
+if %ERRORLEVEL% EQU 2 goto CHANGE_OF_LINK
+if %ERRORLEVEL% EQU 3 goto SELECT_PROFILE
+if %ERRORLEVEL% EQU 4 goto START_BOT
+if %ERRORLEVEL% EQU 5 goto RESET_BOT
+if %ERRORLEVEL% EQU 6 goto DELETE_EVERYTHING
+if %ERRORLEVEL% EQU 7 goto END
 goto MAIN_MENU
 
 :CONFIGURE_ACCOUNT
