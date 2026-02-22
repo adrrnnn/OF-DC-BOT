@@ -93,27 +93,18 @@ echo.
 set /p USERNAME="Enter Discord Username: "
 set /p EMAIL="Enter Discord Email: "
 set /p PASSWORD="Enter Discord Password: "
-set /p OF_LINK="Enter OnlyFans Link: "
+set /p SETUP_OF_LINK="Enter OnlyFans Link (press Enter to use https://onlyfans.com): "
+if "!SETUP_OF_LINK!"=="" set SETUP_OF_LINK=https://onlyfans.com
 
 REM Save to accounts.json database (direct array format)
-node --input-type=commonjs -e "
-const fs = require('fs');
-const accounts = [{ 
-  username: '!USERNAME!', 
-  email: '!EMAIL!', 
-  password: '!PASSWORD!', 
-  ofLink: '!OF_LINK!' 
-}];
-if (!fs.existsSync('config')) fs.mkdirSync('config', { recursive: true });
-fs.writeFileSync('config/accounts.json', JSON.stringify(accounts, null, 2));
-"
+node --input-type=commonjs -e "const fs=require('fs');const accounts=[{username:'!USERNAME!',email:'!EMAIL!',password:'!PASSWORD!',ofLink:'!SETUP_OF_LINK!'}];if(!fs.existsSync('config'))fs.mkdirSync('config',{recursive:true});fs.writeFileSync('config/accounts.json',JSON.stringify(accounts,null,2));"
 
 REM Create .env with this account
 (
 echo DISCORD_EMAIL=!EMAIL!
 echo DISCORD_PASSWORD=!PASSWORD!
 echo BOT_USERNAME=!USERNAME!
-echo OF_LINK=!OF_LINK!
+echo OF_LINK=!SETUP_OF_LINK!
 echo GEMINI_API_KEY_1=
 echo GEMINI_API_KEY_2=
 echo GEMINI_API_KEY_3=
