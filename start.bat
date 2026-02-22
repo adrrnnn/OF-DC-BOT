@@ -51,12 +51,72 @@ if %ERRORLEVEL% NEQ 0 (
     echo       Downloading Node.js LTS...
     echo.
     
-    REM Download Node.js using PowerShell (simplified single line)
-    powershell -NoProfile -ExecutionPolicy Bypass "$url='https://nodejs.org/dist/v20.10.0/node-v20.10.0-x64.msi'; $out=[System.IO.Path]::GetTempPath()+'node.msi'; [Net.ServicePointManager]::SecurityProtocol='Tls12'; (New-Object System.Net.WebClient).DownloadFile($url,$out); Start-Process $out -ArgumentList '/quiet /norestart' -Wait; Remove-Item $out -Force -ErrorAction SilentlyContinue" 2>nul
+    REM Multi-fallback download strategy: bitsadmin -> PowerShell -> Manual
+    set NODE_URL=https://nodejs.org/dist/v20.10.0/node-v20.10.0-x64.msi
+    set NODE_TEMP=%temp%\node.msi
+    set DOWNLOAD_SUCCESS=0
     
-    if %ERRORLEVEL% NEQ 0 (
-        echo       ERROR: Failed to download/install Node.js
-        echo       Manual download: https://nodejs.org/
+    REM METHOD 1: Try bitsadmin (most reliable on firewalled/restricted systems)
+    echo       [Attempt 1/3] Using bitsadmin...
+    bitsadmin /transfer NodeDownload /download /priority low "%NODE_URL%" "%NODE_TEMP%" 2>nul && bitsadmin /complete NodeDownload 2>nul
+    if %ERRORLEVEL% EQU 0 if exist "%NODE_TEMP%" (
+        set DOWNLOAD_SUCCESS=1
+        echo       [OK] bitsadmin download successful
+    ) else (
+        REM Clean up failed bitsadmin job
+        bitsadmin /complete NodeDownload 2>nul
+        bitsadmin /reset 2>nul
+    )
+    
+    REM METHOD 2: Fallback to PowerShell if bitsadmin failed
+    if %DOWNLOAD_SUCCESS% EQU 0 (
+        echo       [Attempt 2/3] Using PowerShell...
+        powershell -NoProfile -ExecutionPolicy Bypass "$url='%NODE_URL%'; $out='%NODE_TEMP%'; [Net.ServicePointManager]::SecurityProtocol='Tls12'; (New-Object System.Net.WebClient).DownloadFile($url,$out); exit $?" 2>nul
+        if %ERRORLEVEL% EQU 0 if exist "%NODE_TEMP%" (
+            set DOWNLOAD_SUCCESS=1
+            echo       [OK] PowerShell download successful
+        )
+    )
+    
+    REM METHOD 3: Final fallback - manual download
+    if %DOWNLOAD_SUCCESS% EQU 0 (
+        echo       [Attempt 3/3] bitsadmin and PowerShell downloads failed
+        echo.
+        echo       MANUAL DOWNLOAD REQUIRED:
+        echo       Please download Node.js v20.10.0 LTS:
+        echo       URL: %NODE_URL%
+        echo.
+        echo       Steps:
+        echo       1. Copy the URL above into your browser
+        echo       2. Save the installer to: %NODE_TEMP%
+        echo       3. Press any key when download is complete
+        echo.
+        pause
+        
+        if not exist "%NODE_TEMP%" (
+            echo       ERROR: Node.js installer not found at %NODE_TEMP%
+            echo       Installation cancelled.
+            echo.
+            pause
+            goto END
+        )
+        set DOWNLOAD_SUCCESS=1
+    )
+    
+    REM Install Node.js if download was successful
+    if %DOWNLOAD_SUCCESS% EQU 1 (
+        echo.
+        echo       Installing Node.js...
+        start /wait "" "%NODE_TEMP%" /quiet /norestart
+        
+        REM Clean up installer
+        del /f /q "%NODE_TEMP%" 2>nul
+        
+        REM Refresh environment variables
+        endlocal
+        setlocal enabledelayedexpansion
+    ) else (
+        echo       ERROR: Failed to obtain Node.js installer
         echo.
         pause
         goto END
@@ -83,15 +143,34 @@ echo.
 
 echo [3/3] Checking dependencies...
 if not exist "node_modules\" (
-    echo       MISSING - Installing now...
-    call npm install
+    echo       MISSING - Installing now (this may take 5-10 minutes)...
+    echo       Downloading Puppeteer and other packages...
+    echo.
+    
+    REM Run npm install with longer timeout and show output
+    call npm install --verbose
+    
+    REM Verify installation succeeded
     if %ERRORLEVEL% NEQ 0 (
-        echo       ERROR: npm install failed
+        echo.
+        echo       WARNING: npm install returned an error, but checking packages...
+    )
+    
+    REM Double-check critical packages exist
+    if not exist "node_modules\puppeteer\" (
+        echo       ERROR: Puppeteer not installed
         echo.
         pause
         goto END
     )
-    echo       [OK] Dependencies installed
+    if not exist "node_modules\dotenv\" (
+        echo       ERROR: dotenv not installed
+        echo.
+        pause
+        goto END
+    )
+    
+    echo       [OK] Dependencies verified and installed
 ) else (
     echo       [OK] Dependencies already installed
 )
