@@ -26,7 +26,7 @@ export class IdleManager {
 
   /**
    * Initialize idle manager with page context
-   * Sets up MutationObserver to watch sidebar for new messages
+   * (MutationObserver removed - was too aggressive and destabilized Discord page)
    */
   initializeObserver(page) {
     if (!page) {
@@ -34,77 +34,22 @@ export class IdleManager {
       return;
     }
 
-    try {
-      // Setup MutationObserver to detect new messages in sidebar
-      page.evaluate(() => {
-        if (window.__dmObserver) {
-          window.__dmObserver.disconnect();
-        }
-
-        const observer = new MutationObserver((mutations) => {
-          // Dispatch event when mutations are detected in sidebar
-          // This indicates new messages or DM changes
-          const event = new CustomEvent('discord-dm-changed', { 
-            detail: { timestamp: Date.now() } 
-          });
-          window.dispatchEvent(event);
-        });
-
-        // Watch the entire sidebar for changes
-        const sidebar = document.querySelector('[class*="sidebar"]') || 
-                       document.querySelector('nav[class*="guilds"]')?.parentElement;
-        
-        if (sidebar) {
-          observer.observe(sidebar, {
-            childList: true,
-            subtree: true,
-            attributes: true,
-            attributeFilter: ['class', 'data-unread']
-          });
-          window.__dmObserver = observer;
-        }
-      });
-
-      logger.info('[IDLE] MutationObserver initialized for sidebar monitoring');
-    } catch (error) {
-      logger.warn(`Failed to initialize MutationObserver: ${error.message}`);
-    }
+    // MutationObserver removed: It was firing thousands of times per second during
+    // Discord's constant re-renders, causing memory buildup and page instability
+    // Keeping it simple: polling + keep-alive is sufficient
+    logger.info('[IDLE] Observer initialization skipped (using polling + keep-alive)');
   }
 
   /**
    * Start monitoring page for activity
-   * Listens for mutation events and marks bot as ACTIVE
+   * Simplified: Polling + manual activity signals from bot.js are sufficient
    */
   startMonitoring(page) {
     if (!page) return;
 
     try {
       page.on('error', () => {}); // Suppress errors
-
-      page.evaluateHandle(() => {
-        // Listen for sidebar mutations
-        window.addEventListener('discord-dm-changed', () => {
-          if (window.__activityCallback) {
-            window.__activityCallback();
-          }
-        });
-
-        // Also listen for user interactions
-        window.addEventListener('mousedown', () => {
-          if (window.__activityCallback) {
-            window.__activityCallback();
-          }
-        }, { once: true, capture: true });
-      });
-
-      // Setup callback that will be called from browser context
-      page.evaluateHandle((callback) => {
-        window.__activityCallback = () => {
-          window.__lastActivity = Date.now();
-        };
-      });
-
-      logger.info('[IDLE] Activity monitoring started');
+      logger.info('[IDLE] Activity monitoring started (polling-based)');
     } catch (error) {
       logger.debug(`Activity monitoring setup failed: ${error.message}`);
     }
@@ -152,26 +97,30 @@ export class IdleManager {
 
   /**
    * Start keep-alive mechanism to prevent React from sleeping
-   * Sends periodic mouse events to browser
+   * Sends periodic mouse events to browser (robust error handling)
    */
   startKeepAlive(page) {
     if (!page) return;
 
-    this.keepAliveInterval = setInterval(() => {
+    this.keepAliveInterval = setInterval(async () => {
+      if (!page || page.isClosed?.()) {
+        return; // Page is gone, stop trying
+      }
+
       try {
         // Send a mouse move event to keep browser "awake"
-        page.evaluate(() => {
+        // Use async/await to ensure it completes before next interval
+        await page.evaluate(() => {
           const event = new MouseEvent('mousemove', {
             bubbles: true,
             cancelable: true,
             view: window
           });
           document.documentElement.dispatchEvent(event);
-        }).catch(() => {
-          // Silently ignore if page is gone
         });
       } catch (error) {
-        // Silently ignore
+        // Silently ignore errors - page may be unresponsive
+        // The main bot loop will detect if page becomes completely unusable
       }
     }, this.KEEP_ALIVE_INTERVAL);
 
