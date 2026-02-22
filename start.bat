@@ -1,18 +1,22 @@
 @echo off
 setlocal enabledelayedexpansion
 title Discord OnlyFans Bot
+color 0A
+
+echo Starting bot setup...
+pause
+
 cd /d "%~dp0"
 
 REM Check if directory change worked
 if %ERRORLEVEL% NEQ 0 (
     echo.
     echo ERROR: Could not navigate to bot directory!
+    echo Current directory: %cd%
     echo.
     pause
     exit /b 1
 )
-
-color 0A
 
 REM Check if bot is already running
 tasklist /FI "IMAGENAME eq node.exe" 2>NUL | find /I "node.exe" >NUL
