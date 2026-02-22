@@ -78,6 +78,9 @@ echo ========================================
 echo.
 
 if not exist ".env" goto SETUP_NEW_ACCOUNT
+
+REM Flush any buffered keypresses before showing menu
+powershell -NoProfile -Command "try { $host.UI.RawUI.FlushInputBuffer() } catch {}" >nul 2>&1
 goto MAIN_MENU
 
 :SETUP_NEW_ACCOUNT
@@ -93,7 +96,7 @@ set /p PASSWORD="Enter Discord Password: "
 set /p OF_LINK="Enter OnlyFans Link: "
 
 REM Save to accounts.json database (direct array format)
-node -e "
+node --input-type=commonjs -e "
 const fs = require('fs');
 const accounts = [{ 
   username: '!USERNAME!', 
@@ -101,6 +104,7 @@ const accounts = [{
   password: '!PASSWORD!', 
   ofLink: '!OF_LINK!' 
 }];
+if (!fs.existsSync('config')) fs.mkdirSync('config', { recursive: true });
 fs.writeFileSync('config/accounts.json', JSON.stringify(accounts, null, 2));
 "
 
@@ -141,13 +145,13 @@ echo [6] Delete Everything (IRREVERSIBLE)
 echo [7] Exit
 echo.
 choice /C 1234567 /N /M "Enter choice (1-7): "
-if %ERRORLEVEL% EQU 1 goto CONFIGURE_ACCOUNT
-if %ERRORLEVEL% EQU 2 goto CHANGE_OF_LINK
-if %ERRORLEVEL% EQU 3 goto SELECT_PROFILE
-if %ERRORLEVEL% EQU 4 goto START_BOT
-if %ERRORLEVEL% EQU 5 goto RESET_BOT
-if %ERRORLEVEL% EQU 6 goto DELETE_EVERYTHING
-if %ERRORLEVEL% EQU 7 goto END
+if errorlevel 7 goto END
+if errorlevel 6 goto DELETE_EVERYTHING
+if errorlevel 5 goto RESET_BOT
+if errorlevel 4 goto START_BOT
+if errorlevel 3 goto SELECT_PROFILE
+if errorlevel 2 goto CHANGE_OF_LINK
+if errorlevel 1 goto CONFIGURE_ACCOUNT
 goto MAIN_MENU
 
 :CONFIGURE_ACCOUNT
@@ -220,7 +224,7 @@ if "%choice%"=="4" (
 REM Email Edit
 if "%choice%"=="1" (
     set /p NEWEMAIL="Enter new Email: "
-    node -e "
+    node --input-type=commonjs -e "
     const fs = require('fs');
     try {
         const data = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8'));
@@ -251,7 +255,7 @@ if "%choice%"=="1" (
 REM Username Edit
 if "%choice%"=="2" (
     set /p NEWUSERNAME="Enter new Username: "
-    node -e "
+    node --input-type=commonjs -e "
     const fs = require('fs');
     try {
         const data = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8'));
@@ -282,7 +286,7 @@ if "%choice%"=="2" (
 REM Password Edit
 if "%choice%"=="3" (
     set /p NEWPASSWORD="Enter new Password: "
-    node -e "
+    node --input-type=commonjs -e "
     const fs = require('fs');
     try {
         const data = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8'));
@@ -327,7 +331,7 @@ set /p EMAIL="Enter Discord Email: "
 set /p PASSWORD="Enter Discord Password: "
 set /p OF_LINK="Enter OnlyFans Link: "
 
-node -e "
+node --input-type=commonjs -e "
 const fs = require('fs');
 try {
     let accounts = [];
@@ -360,7 +364,7 @@ echo   Select Discord Account
 echo ========================================
 echo.
 
-node -e "const fs = require('fs'); if (fs.existsSync('config/accounts.json')) { try { const a = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8')); const accounts = Array.isArray(a) ? a : (a.accounts || []); if (accounts && accounts.length > 0) { accounts.forEach((acc, i) => console.log('[' + (i+1) + '] ' + (acc.username || 'Unknown') + ' (' + (acc.email || 'No email') + ')')); } else { console.log('No accounts saved'); } } catch(e) { console.log('Error:', e.message); } } else { console.log('No accounts database found'); }"
+node --input-type=commonjs -e "const fs = require('fs'); if (fs.existsSync('config/accounts.json')) { try { const a = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8')); const accounts = Array.isArray(a) ? a : (a.accounts || []); if (accounts && accounts.length > 0) { accounts.forEach((acc, i) => console.log('[' + (i+1) + '] ' + (acc.username || 'Unknown') + ' (' + (acc.email || 'No email') + ')')); } else { console.log('No accounts saved'); } } catch(e) { console.log('Error:', e.message); } } else { console.log('No accounts database found'); }"
 
 echo.
 echo [0] Back to Account Configuration
@@ -370,7 +374,7 @@ set /p choice="Enter account number or 0 to go back: "
 if "%choice%"=="" goto LIST_ACCOUNTS
 if "%choice%"=="0" goto CONFIGURE_ACCOUNT
 
-node -e "const fs = require('fs'); const num = parseInt('!choice!'); if (num > 0 && fs.existsSync('config/accounts.json')) { try { const a = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8')); const accounts = Array.isArray(a) ? a : (a.accounts || []); const acc = accounts[num-1]; if (acc) { const env = 'DISCORD_EMAIL='+(acc.email||'')+'\nDISCORD_PASSWORD='+(acc.password||'')+'\nBOT_USERNAME='+(acc.username||'')+'\nOF_LINK='+(acc.ofLink||'')+'\nGEMINI_API_KEY_1=\nGEMINI_API_KEY_2=\nGEMINI_API_KEY_3=\nOPENAI_API_KEY=\nCHECK_DMS_INTERVAL=5000\nRESPONSE_DELAY_MIN=1000\nRESPONSE_DELAY_MAX=3000'; fs.writeFileSync('.env', env); console.log('[OK] Switched to: '+(acc.username||acc.email)); } else { console.log('[ERROR] Invalid account number'); } } catch(e) { console.log('[ERROR]', e.message); } } else { console.log('[ERROR] Invalid choice'); }"
+node --input-type=commonjs -e "const fs = require('fs'); const num = parseInt('!choice!'); if (num > 0 && fs.existsSync('config/accounts.json')) { try { const a = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8')); const accounts = Array.isArray(a) ? a : (a.accounts || []); const acc = accounts[num-1]; if (acc) { const env = 'DISCORD_EMAIL='+(acc.email||'')+'\nDISCORD_PASSWORD='+(acc.password||'')+'\nBOT_USERNAME='+(acc.username||'')+'\nOF_LINK='+(acc.ofLink||'')+'\nGEMINI_API_KEY_1=\nGEMINI_API_KEY_2=\nGEMINI_API_KEY_3=\nOPENAI_API_KEY=\nCHECK_DMS_INTERVAL=5000\nRESPONSE_DELAY_MIN=1000\nRESPONSE_DELAY_MAX=3000'; fs.writeFileSync('.env', env); console.log('[OK] Switched to: '+(acc.username||acc.email)); } else { console.log('[ERROR] Invalid account number'); } } catch(e) { console.log('[ERROR]', e.message); } } else { console.log('[ERROR] Invalid choice'); }"
 
 echo.
 pause
@@ -512,7 +516,7 @@ echo.
 set /p NEW_OF_LINK="Enter new OF_LINK (or press Enter to cancel): "
 if "%NEW_OF_LINK%"=="" goto MAIN_MENU
 
-node -e "
+node --input-type=commonjs -e "
 const fs = require('fs');
 try {
     const data = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8'));
