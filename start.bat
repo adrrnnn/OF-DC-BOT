@@ -30,8 +30,47 @@ echo.
 echo [1/3] Checking Node.js...
 where node >nul 2>&1
 if %ERRORLEVEL% NEQ 0 (
-    echo       ERROR: Node.js not installed!
-    echo       Download from: https://nodejs.org/
+    echo       NOT FOUND - Node.js is required
+    echo.
+    set /p INSTALL_NODE="       Auto-download and install Node.js? (Press Enter to continue, Ctrl+C to cancel): "
+    
+    echo.
+    echo       Downloading Node.js LTS...
+    
+    REM Download Node.js using PowerShell
+    powershell -Command "
+    $url = 'https://nodejs.org/dist/v20.10.0/node-v20.10.0-x64.msi'
+    $output = [System.IO.Path]::GetTempPath() + 'node-installer.msi'
+    
+    try {
+        Write-Host 'Downloading Node.js...'
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        (New-Object System.Net.WebClient).DownloadFile($url, $output)
+        Write-Host 'Download complete! Installing...'
+        
+        REM Run installer silently
+        Start-Process -FilePath $output -ArgumentList '/quiet' -Wait
+        
+        REM Remove installer
+        Remove-Item $output -Force 2>$null
+        
+        Write-Host 'Node.js installation complete!'
+    } catch {
+        Write-Host 'Error downloading Node.js: $_' -ForegroundColor Red
+        exit 1
+    }
+    "
+    
+    if %ERRORLEVEL% NEQ 0 (
+        echo       ERROR: Failed to download/install Node.js
+        echo       Manual download: https://nodejs.org/
+        echo.
+        pause
+        goto END
+    )
+    
+    echo       [OK] Node.js installed successfully
+    echo       Please close and re-run this script
     echo.
     pause
     goto END
