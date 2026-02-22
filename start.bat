@@ -2,6 +2,16 @@
 setlocal enabledelayedexpansion
 title Discord OnlyFans Bot
 cd /d "%~dp0"
+
+REM Check if directory change worked
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo ERROR: Could not navigate to bot directory!
+    echo.
+    pause
+    exit /b 1
+)
+
 color 0A
 
 REM Check if bot is already running
@@ -23,8 +33,11 @@ if %ERRORLEVEL% EQU 0 (
 cls
 echo.
 echo ========================================
-echo   Discord OnlyFans Bot
+echo   Discord OnlyFans Bot v4.5
+echo   Production Ready
 echo ========================================
+echo.
+echo Initializing setup...
 echo.
 
 echo [1/3] Checking Node.js...
@@ -36,30 +49,10 @@ if %ERRORLEVEL% NEQ 0 (
     
     echo.
     echo       Downloading Node.js LTS...
+    echo.
     
-    REM Download Node.js using PowerShell
-    powershell -Command "
-    $url = 'https://nodejs.org/dist/v20.10.0/node-v20.10.0-x64.msi'
-    $output = [System.IO.Path]::GetTempPath() + 'node-installer.msi'
-    
-    try {
-        Write-Host 'Downloading Node.js...'
-        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-        (New-Object System.Net.WebClient).DownloadFile($url, $output)
-        Write-Host 'Download complete! Installing...'
-        
-        REM Run installer silently
-        Start-Process -FilePath $output -ArgumentList '/quiet' -Wait
-        
-        REM Remove installer
-        Remove-Item $output -Force 2>$null
-        
-        Write-Host 'Node.js installation complete!'
-    } catch {
-        Write-Host 'Error downloading Node.js: $_' -ForegroundColor Red
-        exit 1
-    }
-    "
+    REM Download Node.js using PowerShell (simplified single line)
+    powershell -NoProfile -ExecutionPolicy Bypass "$url='https://nodejs.org/dist/v20.10.0/node-v20.10.0-x64.msi'; $out=[System.IO.Path]::GetTempPath()+'node.msi'; [Net.ServicePointManager]::SecurityProtocol='Tls12'; (New-Object System.Net.WebClient).DownloadFile($url,$out); Start-Process $out -ArgumentList '/quiet /norestart' -Wait; Remove-Item $out -Force -ErrorAction SilentlyContinue" 2>nul
     
     if %ERRORLEVEL% NEQ 0 (
         echo       ERROR: Failed to download/install Node.js
@@ -69,11 +62,10 @@ if %ERRORLEVEL% NEQ 0 (
         goto END
     )
     
-    echo       [OK] Node.js installed successfully
-    echo       Please close and re-run this script
+    echo       [OK] Node.js installed successfully!
     echo.
-    pause
-    goto END
+    timeout /t 2 /nobreak >nul
+    goto MAIN_START
 )
 echo       [OK] Node.js is installed
 echo.
