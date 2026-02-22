@@ -43,17 +43,31 @@ export class BrowserController {
    */
   async launch() {
     try {
-      // Find Edge or Chrome executable (puppeteer-core requires explicit path)
-      const edgePaths = [
-        'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-        'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
-        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+      // Find installed browser (puppeteer-core requires explicit path)
+      const localAppData = process.env.LOCALAPPDATA || '';
+      const programFiles = process.env.ProgramFiles || 'C:\\Program Files';
+      const programFilesX86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
+
+      const browserPaths = [
+        // Microsoft Edge
+        `${programFilesX86}\\Microsoft\\Edge\\Application\\msedge.exe`,
+        `${programFiles}\\Microsoft\\Edge\\Application\\msedge.exe`,
+        // Google Chrome
+        `${programFiles}\\Google\\Chrome\\Application\\chrome.exe`,
+        `${programFilesX86}\\Google\\Chrome\\Application\\chrome.exe`,
+        // Opera
+        `${localAppData}\\Programs\\Opera\\opera.exe`,
+        `${localAppData}\\Programs\\Opera GX\\opera.exe`,
+        `${programFiles}\\Opera\\opera.exe`,
+        // Brave
+        `${programFiles}\\BraveSoftware\\Brave-Browser\\Application\\brave.exe`,
+        `${programFilesX86}\\BraveSoftware\\Brave-Browser\\Application\\brave.exe`,
       ];
-      const executablePath = edgePaths.find(p => fs.existsSync(p));
+      const executablePath = browserPaths.find(p => fs.existsSync(p));
       if (!executablePath) {
-        throw new Error('No browser found. Please ensure Microsoft Edge or Google Chrome is installed.');
+        throw new Error('No browser found. Please install Microsoft Edge, Google Chrome, Opera, or Brave.');
       }
+      logger.info(`Using browser: ${executablePath}`);
 
       this.browser = await puppeteer.launch({
         headless: false,

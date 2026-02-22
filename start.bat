@@ -4,14 +4,10 @@ title Discord OnlyFans Bot
 cd /d "%~dp0"
 color 0A
 
-REM Kill any leftover processes from previous runs
+REM Kill any leftover node.exe from previous runs
 tasklist /FI "IMAGENAME eq node.exe" 2>NUL | find /I "node.exe" >NUL
 if %ERRORLEVEL% EQU 0 (
     taskkill /FI "IMAGENAME eq node.exe" /F >NUL 2>&1
-)
-tasklist /FI "IMAGENAME eq msedge.exe" 2>NUL | find /I "msedge.exe" >NUL
-if %ERRORLEVEL% EQU 0 (
-    taskkill /FI "IMAGENAME eq msedge.exe" /F >NUL 2>&1
 )
 ping -n 2 127.0.0.1 >NUL
 
