@@ -37,90 +37,12 @@ echo.
 
 echo [1/3] Checking Node.js...
 where node >nul 2>&1
-if %ERRORLEVEL% NEQ 0 (
+if %ERRORLEVEL% EQU 0 (
+    echo       [OK] Node.js is installed
+) else (
     echo       NOT FOUND - Node.js is required
-    echo.
-    set /p INSTALL_NODE="       Auto-download and install Node.js? (Press Enter to continue, Ctrl+C to cancel): "
-    
-    echo.
-    echo       Downloading Node.js LTS...
-    echo.
-    
-    REM Multi-fallback download strategy: bitsadmin -> PowerShell -> Manual
-    set NODE_URL=https://nodejs.org/dist/v20.10.0/node-v20.10.0-x64.msi
-    set NODE_TEMP=%temp%\node.msi
-    set DOWNLOAD_SUCCESS=0
-    
-    REM METHOD 1: Try bitsadmin (most reliable on firewalled/restricted systems)
-    echo       [Attempt 1/3] Using bitsadmin...
-    bitsadmin /transfer NodeDownload /download /priority low "%NODE_URL%" "%NODE_TEMP%" 2>nul && bitsadmin /complete NodeDownload 2>nul
-    if %ERRORLEVEL% EQU 0 if exist "%NODE_TEMP%" (
-        set DOWNLOAD_SUCCESS=1
-        echo       [OK] bitsadmin download successful
-    ) else (
-        REM Clean up failed bitsadmin job
-        bitsadmin /complete NodeDownload 2>nul
-        bitsadmin /reset 2>nul
-    )
-    
-    REM METHOD 2: Fallback to PowerShell if bitsadmin failed
-    if %DOWNLOAD_SUCCESS% EQU 0 (
-        echo       [Attempt 2/3] Using PowerShell...
-        powershell -NoProfile -ExecutionPolicy Bypass "$url='%NODE_URL%'; $out='%NODE_TEMP%'; [Net.ServicePointManager]::SecurityProtocol='Tls12'; (New-Object System.Net.WebClient).DownloadFile($url,$out); exit $?" 2>nul
-        if %ERRORLEVEL% EQU 0 if exist "%NODE_TEMP%" (
-            set DOWNLOAD_SUCCESS=1
-            echo       [OK] PowerShell download successful
-        )
-    )
-    
-    REM METHOD 3: Final fallback - manual download
-    if %DOWNLOAD_SUCCESS% EQU 0 (
-        echo       [Attempt 3/3] bitsadmin and PowerShell downloads failed
-        echo.
-        echo       MANUAL DOWNLOAD REQUIRED:
-        echo       Please download Node.js v20.10.0 LTS:
-        echo       URL: %NODE_URL%
-        echo.
-        echo       Steps:
-        echo       1. Copy the URL above into your browser
-        echo       2. Save the installer to: %NODE_TEMP%
-        echo       3. Press any key when download is complete
-        echo.
-        pause
-        
-        if not exist "%NODE_TEMP%" (
-            echo       ERROR: Node.js installer not found at %NODE_TEMP%
-            echo       Installation cancelled.
-            echo.
-            pause
-            goto END
-        )
-        set DOWNLOAD_SUCCESS=1
-    )
-    
-    REM Install Node.js if download was successful
-    if %DOWNLOAD_SUCCESS% EQU 1 (
-        echo.
-        echo       Installing Node.js...
-        start /wait "" "%NODE_TEMP%" /quiet /norestart
-        
-        REM Clean up installer
-        del /f /q "%NODE_TEMP%" 2>nul
-        
-        REM Refresh environment variables
-        endlocal
-        setlocal enabledelayedexpansion
-    ) else (
-        echo       ERROR: Failed to obtain Node.js installer
-        echo.
-        pause
-        goto END
-    )
-    
-    echo       [OK] Node.js installed successfully!
-    echo.
-    timeout /t 2 /nobreak >nul
-    goto MAIN_START
+    pause
+    goto END
 )
 echo       [OK] Node.js is installed
 echo.
