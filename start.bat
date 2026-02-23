@@ -96,8 +96,19 @@ set /p PASSWORD="Enter Discord Password: "
 set /p SETUP_OF_LINK="Enter OnlyFans Link (press Enter to use https://onlyfans.com): "
 if "!SETUP_OF_LINK!"=="" set SETUP_OF_LINK=https://onlyfans.com
 
-REM Save to accounts.json database (direct array format)
-node --input-type=commonjs -e "const fs=require('fs');const accounts=[{username:'!USERNAME!',email:'!EMAIL!',password:'!PASSWORD!',ofLink:'!SETUP_OF_LINK!'}];if(!fs.existsSync('config'))fs.mkdirSync('config',{recursive:true});fs.writeFileSync('config/accounts.json',JSON.stringify(accounts,null,2));"
+REM Save account data to temporary file to safely escape special characters
+setlocal disabledelayedexpansion
+(
+    echo [
+    echo   {
+    echo     "username": "%USERNAME%",
+    echo     "email": "%EMAIL%",
+    echo     "password": "%PASSWORD%",
+    echo     "ofLink": "%SETUP_OF_LINK%"
+    echo   }
+    echo ]
+) > config/accounts.json
+setlocal enabledelayedexpansion
 
 REM Create .env with this account
 (

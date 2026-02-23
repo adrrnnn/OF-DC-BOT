@@ -40,10 +40,10 @@
     "permanentlyClosed": true
   },
   "1473927580527890498": {
-    "startTime": 1771753807876,
-    "lastUserMessageTime": 1771753807876,
-    "lastMessageId": null,
-    "messageCount": 0,
+    "startTime": 1771780009818,
+    "lastUserMessageTime": 1771780011917,
+    "lastMessageId": "[ ] hello",
+    "messageCount": 1,
     "ofLinkSent": false
   }
 }

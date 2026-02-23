@@ -69,6 +69,15 @@ export class BrowserController {
       }
       logger.info(`Using browser: ${executablePath}`);
 
+      // Use 1280x720 viewport for maximum compatibility across different screen sizes
+      // Discord's hCaptcha modal renders correctly at this size on:
+      // - 1366x768 displays (common laptop size with DPI scaling)
+      // - 1920x1080 monitors (fits well with browser chrome)
+      // - Multi-monitor setups (doesn't assume specific screen dimensions)
+      // Previous fixed 1920x1080 viewport was causing modal to render off-screen on smaller displays
+      
+      logger.info('Launching browser with 1280x720 viewport (compatible with hCaptcha modal)');
+
       this.browser = await puppeteer.launch({
         headless: false,
         executablePath,
@@ -79,7 +88,7 @@ export class BrowserController {
           // Use shared memory instead (standard optimization for non-container environments)
           '--disable-blink-features=AutomationControlled',
         ],
-        defaultViewport: { width: 1920, height: 1080 },
+        defaultViewport: { width: 1280, height: 720 },
       });
 
       this.page = await this.browser.newPage();
