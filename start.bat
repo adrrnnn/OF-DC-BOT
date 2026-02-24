@@ -190,7 +190,7 @@ echo.
 set /p choice="Enter choice (1-4): "
 
 if "%choice%"=="1" goto VIEW_CURRENT
-if "%choice%"=="2" goto LIST_ACCOUNTS
+if "%choice%"=="2" goto LIST_ACCOUNTS2
 if "%choice%"=="3" goto ADD_NEW_ACCOUNT
 if "%choice%"=="4" goto MAIN_MENU
 echo Invalid choice. Try again.
@@ -245,25 +245,13 @@ if "%choice%"=="4" (
 REM Email Edit
 if "%choice%"=="1" (
     set /p NEWEMAIL="Enter new Email: "
-    setlocal disabledelayedexpansion
-    echo const fs = require('fs'); > edit_temp.cjs
-    echo const env = fs.readFileSync('.env', 'utf8'); >> edit_temp.cjs
-    echo const match = env.match(/DISCORD_EMAIL=(.+)/); >> edit_temp.cjs
-    echo const currentEmail = match ? match[1].trim() : null; >> edit_temp.cjs
-    echo if (currentEmail) { >> edit_temp.cjs
-    echo   let accounts = []; >> edit_temp.cjs
-    echo   if (fs.existsSync('config/accounts.json')) { >> edit_temp.cjs
-    echo     const data = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8')); >> edit_temp.cjs
-    echo     accounts = Array.isArray(data) ? data : (data.accounts ^|^| []); >> edit_temp.cjs
-    echo     const idx = accounts.findIndex(a =^> a.email === currentEmail); >> edit_temp.cjs
-    echo     if (idx !== -1) accounts[idx].email = '%NEWEMAIL%'; >> edit_temp.cjs
-    echo   } >> edit_temp.cjs
-    echo   fs.writeFileSync('config/accounts.json', JSON.stringify(accounts, null, 2)); >> edit_temp.cjs
-    echo   fs.writeFileSync('.env', env.replace(/DISCORD_EMAIL=.*/m, 'DISCORD_EMAIL=%NEWEMAIL%')); >> edit_temp.cjs
-    echo } >> edit_temp.cjs
-    endlocal
-    node edit_temp.cjs
-    del /F /Q edit_temp.cjs >nul 2>&1
+    if "!NEWEMAIL!"=="" (
+        echo.
+        echo [ERROR] Email cannot be empty. Please enter a valid email.
+        pause
+        goto EDIT_CURRENT
+    )
+    node scripts\change-email.cjs "!NEWEMAIL!"
     pause
     goto EDIT_CURRENT
 )
@@ -271,26 +259,13 @@ if "%choice%"=="1" (
 REM Username Edit
 if "%choice%"=="2" (
     set /p NEWUSERNAME="Enter new Username: "
-    setlocal disabledelayedexpansion
-    echo const fs = require('fs'); > edit_temp.cjs
-    echo const env = fs.readFileSync('.env', 'utf8'); >> edit_temp.cjs
-    echo const match = env.match(/DISCORD_EMAIL=(.+)/); >> edit_temp.cjs
-    echo const currentEmail = match ? match[1].trim() : null; >> edit_temp.cjs
-    echo if (currentEmail) { >> edit_temp.cjs
-    echo   let accounts = []; >> edit_temp.cjs
-    echo   if (fs.existsSync('config/accounts.json')) { >> edit_temp.cjs
-    echo     const data = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8')); >> edit_temp.cjs
-    echo     accounts = Array.isArray(data) ? data : (data.accounts ^|^| []); >> edit_temp.cjs
-    echo     const idx = accounts.findIndex(a =^> a.email === currentEmail); >> edit_temp.cjs
-    echo     if (idx !== -1) accounts[idx].username = '%NEWUSERNAME%'; >> edit_temp.cjs
-    echo   } >> edit_temp.cjs
-    echo   fs.writeFileSync('config/accounts.json', JSON.stringify(accounts, null, 2)); >> edit_temp.cjs
-    echo   fs.writeFileSync('.env', env.replace(/BOT_USERNAME=.*/m, 'BOT_USERNAME=%NEWUSERNAME%')); >> edit_temp.cjs
-    echo   console.log('[OK] Username updated!'); >> edit_temp.cjs
-    echo } >> edit_temp.cjs
-    endlocal
-    node edit_temp.cjs
-    del /F /Q edit_temp.cjs >nul 2>&1
+    if "!NEWUSERNAME!"=="" (
+        echo.
+        echo [ERROR] Username cannot be empty. Please enter a valid username.
+        pause
+        goto EDIT_CURRENT
+    )
+    node scripts\change-username.cjs "!NEWUSERNAME!"
     pause
     goto EDIT_CURRENT
 )
@@ -298,26 +273,13 @@ if "%choice%"=="2" (
 REM Password Edit
 if "%choice%"=="3" (
     set /p NEWPASSWORD="Enter new Password: "
-    setlocal disabledelayedexpansion
-    echo const fs = require('fs'); > edit_temp.cjs
-    echo const env = fs.readFileSync('.env', 'utf8'); >> edit_temp.cjs
-    echo const match = env.match(/DISCORD_EMAIL=(.+)/); >> edit_temp.cjs
-    echo const currentEmail = match ? match[1].trim() : null; >> edit_temp.cjs
-    echo if (currentEmail) { >> edit_temp.cjs
-    echo   let accounts = []; >> edit_temp.cjs
-    echo   if (fs.existsSync('config/accounts.json')) { >> edit_temp.cjs
-    echo     const data = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8')); >> edit_temp.cjs
-    echo     accounts = Array.isArray(data) ? data : (data.accounts ^|^| []); >> edit_temp.cjs
-    echo     const idx = accounts.findIndex(a =^> a.email === currentEmail); >> edit_temp.cjs
-    echo     if (idx !== -1) accounts[idx].password = '%NEWPASSWORD%'; >> edit_temp.cjs
-    echo   } >> edit_temp.cjs
-    echo   fs.writeFileSync('config/accounts.json', JSON.stringify(accounts, null, 2)); >> edit_temp.cjs
-    echo   fs.writeFileSync('.env', env.replace(/DISCORD_PASSWORD=.*/m, 'DISCORD_PASSWORD=%NEWPASSWORD%')); >> edit_temp.cjs
-    echo   console.log('[OK] Password updated!'); >> edit_temp.cjs
-    echo } >> edit_temp.cjs
-    endlocal
-    node edit_temp.cjs
-    del /F /Q edit_temp.cjs >nul 2>&1
+    if "!NEWPASSWORD!"=="" (
+        echo.
+        echo [ERROR] Password cannot be empty. Please enter a valid password.
+        pause
+        goto EDIT_CURRENT
+    )
+    node scripts\change-password.cjs "!NEWPASSWORD!"
     pause
     goto EDIT_CURRENT
 )
@@ -368,6 +330,54 @@ echo ERROR: Failed to add account.
 echo.
 pause
 goto ADD_NEW_ACCOUNT
+
+:LIST_ACCOUNTS
+cls
+echo.
+echo ========================================
+echo   Select Discord Account
+echo ========================================
+echo.
+
+node --input-type=commonjs -e "const fs = require('fs'); if (fs.existsSync('config/accounts.json')) { try { const a = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8')); const accounts = Array.isArray(a) ? a : (a.accounts ^|^| []); if (accounts && accounts.length > 0) { accounts.forEach((acc, i) => console.log('[' + (i+1) + '] ' + (acc.username || 'Unknown') + ' (' + (acc.email || 'No email') + ')')); } else { console.log('No accounts saved'); } } catch(e) { console.log('Error:', e.message); } } else { console.log('No accounts database found'); }"
+
+echo.
+echo [0] Back to Account Configuration
+echo.
+set /p choice="Enter account number or 0 to go back: "
+
+if "%choice%"=="" goto LIST_ACCOUNTS
+if "%choice%"=="0" goto CONFIGURE_ACCOUNT
+
+node --input-type=commonjs -e "const fs = require('fs'); const num = parseInt('!choice!'); if (num > 0 && fs.existsSync('config/accounts.json')) { try { const a = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8')); const accounts = Array.isArray(a) ? a : (a.accounts ^|^| []); const acc = accounts[num-1]; if (acc) { const env = 'DISCORD_EMAIL='+(acc.email||'')+'\nDISCORD_PASSWORD='+(acc.password||'')+'\nBOT_USERNAME='+(acc.username||'')+'\nOF_LINK='+(acc.ofLink||'')+'\nAPI_PROXY_URL=https://discord-bot-api-proxy.mma12personal.workers.dev\nCHECK_DMS_INTERVAL=5000\nRESPONSE_DELAY_MIN=1000\nRESPONSE_DELAY_MAX=3000'; fs.writeFileSync('.env', env); console.log('[OK] Switched to: '+(acc.username||acc.email)); } else { console.log('[ERROR] Invalid account number'); } } catch(e) { console.log('[ERROR]', e.message); } } else { console.log('[ERROR] Invalid choice'); }"
+
+echo.
+pause
+goto LIST_ACCOUNTS
+
+:LIST_ACCOUNTS2
+cls
+echo.
+echo ========================================
+echo   Select Discord Account
+echo ========================================
+echo.
+
+node scripts\list-accounts.cjs
+
+echo.
+echo [0] Back to Account Configuration
+echo.
+set /p choice="Enter account number or 0 to go back: "
+
+if "%choice%"=="" goto LIST_ACCOUNTS2
+if "%choice%"=="0" goto CONFIGURE_ACCOUNT
+
+node scripts\select-account.cjs "!choice!"
+
+echo.
+pause
+goto LIST_ACCOUNTS2
 
 :LIST_ACCOUNTS
 cls

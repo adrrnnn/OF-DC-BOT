@@ -22,12 +22,19 @@
       "race": "Filipino"
     },
     {
-      "id": 4,
-      "name": "Jess",
-      "age": "19",
-      "location": "India",
-      "race": "Indian"
+      "id": 5,
+      "name": "Maimai",
+      "age": "22",
+      "location": "Australia",
+      "race": "Japanese"
+    },
+    {
+      "id": 6,
+      "name": "Jen",
+      "age": "24",
+      "location": "Florida",
+      "race": "Latina"
     }
   ],
-  "activeProfileId": 3
+  "activeProfileId": 1
 }
