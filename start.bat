@@ -116,10 +116,7 @@ echo DISCORD_EMAIL=!EMAIL!
 echo DISCORD_PASSWORD=!PASSWORD!
 echo BOT_USERNAME=!USERNAME!
 echo OF_LINK=!SETUP_OF_LINK!
-echo GEMINI_API_KEY_1=
-echo GEMINI_API_KEY_2=
-echo GEMINI_API_KEY_3=
-echo OPENAI_API_KEY=
+echo API_PROXY_URL=https://discord-bot-api-proxy.mma12personal.workers.dev
 echo CHECK_DMS_INTERVAL=5000
 echo RESPONSE_DELAY_MIN=1000
 echo RESPONSE_DELAY_MAX=3000
@@ -376,7 +373,7 @@ set /p choice="Enter account number or 0 to go back: "
 if "%choice%"=="" goto LIST_ACCOUNTS
 if "%choice%"=="0" goto CONFIGURE_ACCOUNT
 
-node --input-type=commonjs -e "const fs = require('fs'); const num = parseInt('!choice!'); if (num > 0 && fs.existsSync('config/accounts.json')) { try { const a = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8')); const accounts = Array.isArray(a) ? a : (a.accounts || []); const acc = accounts[num-1]; if (acc) { const env = 'DISCORD_EMAIL='+(acc.email||'')+'\nDISCORD_PASSWORD='+(acc.password||'')+'\nBOT_USERNAME='+(acc.username||'')+'\nOF_LINK='+(acc.ofLink||'')+'\nGEMINI_API_KEY_1=\nGEMINI_API_KEY_2=\nGEMINI_API_KEY_3=\nOPENAI_API_KEY=\nCHECK_DMS_INTERVAL=5000\nRESPONSE_DELAY_MIN=1000\nRESPONSE_DELAY_MAX=3000'; fs.writeFileSync('.env', env); console.log('[OK] Switched to: '+(acc.username||acc.email)); } else { console.log('[ERROR] Invalid account number'); } } catch(e) { console.log('[ERROR]', e.message); } } else { console.log('[ERROR] Invalid choice'); }"
+node --input-type=commonjs -e "const fs = require('fs'); const num = parseInt('!choice!'); if (num > 0 && fs.existsSync('config/accounts.json')) { try { const a = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8')); const accounts = Array.isArray(a) ? a : (a.accounts || []); const acc = accounts[num-1]; if (acc) { const env = 'DISCORD_EMAIL='+(acc.email||'')+'\nDISCORD_PASSWORD='+(acc.password||'')+'\nBOT_USERNAME='+(acc.username||'')+'\nOF_LINK='+(acc.ofLink||'')+'\nAPI_PROXY_URL=https://discord-bot-api-proxy.mma12personal.workers.dev\nCHECK_DMS_INTERVAL=5000\nRESPONSE_DELAY_MIN=1000\nRESPONSE_DELAY_MAX=3000'; fs.writeFileSync('.env', env); console.log('[OK] Switched to: '+(acc.username||acc.email)); } else { console.log('[ERROR] Invalid account number'); } } catch(e) { console.log('[ERROR]', e.message); } } else { console.log('[ERROR] Invalid choice'); }"
 
 echo.
 pause

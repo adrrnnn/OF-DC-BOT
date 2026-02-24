@@ -162,6 +162,13 @@ export class MessageHandler {
         userMessage,
         this.templateMatcher.getSystemPrompt()
       );
+      
+      // Check if API keys are dead/exhausted
+      if (!response) {
+        logger.error('❌ API key error - No API keys available. Add more credits or generate new API key.');
+        return null; // Skip this user entirely
+      }
+      
       source = 'ai_gemini';
       
       // Check if template indicated this should send OF link

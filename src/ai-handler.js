@@ -76,8 +76,8 @@ export class AIHandler {
   }
 
   /**
-   * Generate response using multi-provider system
-   * Automatically tries Gemini first, falls back to GPT Nano if needed
+   * Generate response using proxy server (Cloudflare Workers)
+   * Proxy forwards to Gemini/OpenAI with your API keys
    */
   async generateResponse(userMessage, systemPrompt) {
     try {
@@ -87,60 +87,47 @@ export class AIHandler {
         return null; // Let message handler deal with it
       }
 
-      // Build natural prompt using training context
-      const conversationContext = this.buildConversationContext();
-      
-      const prompt = `${systemPrompt}
-
-${conversationContext}
-
---- THE MESSAGE ---
-User said: "${userMessage}"
-
---- YOUR RESPONSE ---
-Reply naturally in 1-2 short sentences. Reference what they said specifically.`;
-
-      const provider = this.providerFactory.getProvider();
-      
-      if (!provider) {
-        logger.warn('No AI providers available - using contextual fallback');
-        return this.getContextualFallbackResponse(userMessage);
+      const proxyUrl = process.env.API_PROXY_URL;
+      if (!proxyUrl) {
+        logger.error('❌ API_PROXY_URL not configured in .env');
+        return null;
       }
 
-      logger.info(`Making AI request using ${provider.getName()}`);
+      logger.info(`Making AI request via proxy: ${proxyUrl}`);
+
+      const response = await fetch(proxyUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userMessage, systemPrompt }),
+      });
+
+      if (!response.ok) {
+        logger.error(`❌ Proxy error: ${response.status}`);
+        return null;
+      }
+
+      const data = await response.json();
       
-      // Use the provider to generate response
-      let response = await provider.generateResponse(prompt, systemPrompt);
-      
+      if (data.error) {
+        logger.error(`❌ API error from proxy: ${data.error}`);
+        logger.error(`❌ No API keys available. Add more credits or generate new API key.`);
+        return null;
+      }
+
+      let responseText = data.response;
+
       // SAFEGUARD: Check AI response for illegal content
-      if (this.isIllegalResponse(response)) {
-        logger.warn(`⚠️  AI generated unsafe response, rejecting: "${response}"`);
+      if (this.isIllegalResponse(responseText)) {
+        logger.warn(`⚠️  AI generated unsafe response, rejecting: "${responseText}"`);
         return null; // Reject the response
       }
-      
-      return response;
+
+      return responseText;
 
     } catch (error) {
-      logger.warn(`AI error (${error.message.substring(0, 100)}) - attempting OpenAI...`);
-      
-      // If first attempt failed, force try OpenAI directly
-      if (this.providerFactory.gptNanoProvider && this.providerFactory.gptNanoProvider.isAvailable()) {
-        try {
-          logger.info(`Forcing OpenAI fallback...`);
-          const prompt = `${systemPrompt}
-
-User said: "${userMessage}"
-
-Reply naturally in 1-2 short sentences.`;
-          const response = await this.providerFactory.gptNanoProvider.generateResponse(prompt, systemPrompt);
-          logger.info(`✅ OpenAI succeeded after Gemini failed`);
-          return response;
-        } catch (openaiError) {
-          logger.warn(`OpenAI also failed: ${openaiError.message.substring(0, 100)}`);
-        }
-      }
-      
-      return this.getContextualFallbackResponse(userMessage);
+      logger.error(`❌ API connection failed - ${error.message}`);
+      logger.error(`❌ No API keys available. Add more credits or generate new API key.`);
+      return null;
     }
   }
 
