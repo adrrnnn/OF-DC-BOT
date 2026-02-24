@@ -254,8 +254,8 @@ if "%choice%"=="1" (
     echo   let accounts = []; >> edit_temp.cjs
     echo   if (fs.existsSync('config/accounts.json')) { >> edit_temp.cjs
     echo     const data = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8')); >> edit_temp.cjs
-    echo     accounts = Array.isArray(data) ? data : (data.accounts || []); >> edit_temp.cjs
-    echo     const idx = accounts.findIndex(a => a.email === currentEmail); >> edit_temp.cjs
+    echo     accounts = Array.isArray(data) ? data : (data.accounts ^|^| []); >> edit_temp.cjs
+    echo     const idx = accounts.findIndex(a =^> a.email === currentEmail); >> edit_temp.cjs
     echo     if (idx !== -1) accounts[idx].email = '%NEWEMAIL%'; >> edit_temp.cjs
     echo   } >> edit_temp.cjs
     echo   fs.writeFileSync('config/accounts.json', JSON.stringify(accounts, null, 2)); >> edit_temp.cjs
@@ -280,8 +280,8 @@ if "%choice%"=="2" (
     echo   let accounts = []; >> edit_temp.cjs
     echo   if (fs.existsSync('config/accounts.json')) { >> edit_temp.cjs
     echo     const data = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8')); >> edit_temp.cjs
-    echo     accounts = Array.isArray(data) ? data : (data.accounts || []); >> edit_temp.cjs
-    echo     const idx = accounts.findIndex(a => a.email === currentEmail); >> edit_temp.cjs
+    echo     accounts = Array.isArray(data) ? data : (data.accounts ^|^| []); >> edit_temp.cjs
+    echo     const idx = accounts.findIndex(a =^> a.email === currentEmail); >> edit_temp.cjs
     echo     if (idx !== -1) accounts[idx].username = '%NEWUSERNAME%'; >> edit_temp.cjs
     echo   } >> edit_temp.cjs
     echo   fs.writeFileSync('config/accounts.json', JSON.stringify(accounts, null, 2)); >> edit_temp.cjs
@@ -307,8 +307,8 @@ if "%choice%"=="3" (
     echo   let accounts = []; >> edit_temp.cjs
     echo   if (fs.existsSync('config/accounts.json')) { >> edit_temp.cjs
     echo     const data = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8')); >> edit_temp.cjs
-    echo     accounts = Array.isArray(data) ? data : (data.accounts || []); >> edit_temp.cjs
-    echo     const idx = accounts.findIndex(a => a.email === currentEmail); >> edit_temp.cjs
+    echo     accounts = Array.isArray(data) ? data : (data.accounts ^|^| []); >> edit_temp.cjs
+    echo     const idx = accounts.findIndex(a =^> a.email === currentEmail); >> edit_temp.cjs
     echo     if (idx !== -1) accounts[idx].password = '%NEWPASSWORD%'; >> edit_temp.cjs
     echo   } >> edit_temp.cjs
     echo   fs.writeFileSync('config/accounts.json', JSON.stringify(accounts, null, 2)); >> edit_temp.cjs
@@ -345,7 +345,7 @@ echo const fs = require('fs'); > add_temp.cjs
 echo let accounts = []; >> add_temp.cjs
 echo if (fs.existsSync('config/accounts.json')) { >> add_temp.cjs
 echo   const data = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8')); >> add_temp.cjs
-echo   accounts = Array.isArray(data) ? data : (data.accounts || []); >> add_temp.cjs
+echo   accounts = Array.isArray(data) ? data : (data.accounts ^|^| []); >> add_temp.cjs
 echo } >> add_temp.cjs
 echo accounts.push({ username: '%USERNAME%', email: '%EMAIL%', password: '%PASSWORD%', ofLink: '%OF_LINK%' }); >> add_temp.cjs
 echo fs.writeFileSync('config/accounts.json', JSON.stringify(accounts, null, 2)); >> add_temp.cjs
@@ -377,7 +377,7 @@ echo   Select Discord Account
 echo ========================================
 echo.
 
-node --input-type=commonjs -e "const fs = require('fs'); if (fs.existsSync('config/accounts.json')) { try { const a = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8')); const accounts = Array.isArray(a) ? a : (a.accounts || []); if (accounts && accounts.length > 0) { accounts.forEach((acc, i) => console.log('[' + (i+1) + '] ' + (acc.username || 'Unknown') + ' (' + (acc.email || 'No email') + ')')); } else { console.log('No accounts saved'); } } catch(e) { console.log('Error:', e.message); } } else { console.log('No accounts database found'); }"
+node --input-type=commonjs -e "const fs = require('fs'); if (fs.existsSync('config/accounts.json')) { try { const a = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8')); const accounts = Array.isArray(a) ? a : (a.accounts ^|^| []); if (accounts && accounts.length > 0) { accounts.forEach((acc, i) => console.log('[' + (i+1) + '] ' + (acc.username || 'Unknown') + ' (' + (acc.email || 'No email') + ')')); } else { console.log('No accounts saved'); } } catch(e) { console.log('Error:', e.message); } } else { console.log('No accounts database found'); }"
 
 echo.
 echo [0] Back to Account Configuration
@@ -387,7 +387,7 @@ set /p choice="Enter account number or 0 to go back: "
 if "%choice%"=="" goto LIST_ACCOUNTS
 if "%choice%"=="0" goto CONFIGURE_ACCOUNT
 
-node --input-type=commonjs -e "const fs = require('fs'); const num = parseInt('!choice!'); if (num > 0 && fs.existsSync('config/accounts.json')) { try { const a = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8')); const accounts = Array.isArray(a) ? a : (a.accounts || []); const acc = accounts[num-1]; if (acc) { const env = 'DISCORD_EMAIL='+(acc.email||'')+'\nDISCORD_PASSWORD='+(acc.password||'')+'\nBOT_USERNAME='+(acc.username||'')+'\nOF_LINK='+(acc.ofLink||'')+'\nAPI_PROXY_URL=https://discord-bot-api-proxy.mma12personal.workers.dev\nCHECK_DMS_INTERVAL=5000\nRESPONSE_DELAY_MIN=1000\nRESPONSE_DELAY_MAX=3000'; fs.writeFileSync('.env', env); console.log('[OK] Switched to: '+(acc.username||acc.email)); } else { console.log('[ERROR] Invalid account number'); } } catch(e) { console.log('[ERROR]', e.message); } } else { console.log('[ERROR] Invalid choice'); }"
+node --input-type=commonjs -e "const fs = require('fs'); const num = parseInt('!choice!'); if (num > 0 && fs.existsSync('config/accounts.json')) { try { const a = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8')); const accounts = Array.isArray(a) ? a : (a.accounts ^|^| []); const acc = accounts[num-1]; if (acc) { const env = 'DISCORD_EMAIL='+(acc.email||'')+'\nDISCORD_PASSWORD='+(acc.password||'')+'\nBOT_USERNAME='+(acc.username||'')+'\nOF_LINK='+(acc.ofLink||'')+'\nAPI_PROXY_URL=https://discord-bot-api-proxy.mma12personal.workers.dev\nCHECK_DMS_INTERVAL=5000\nRESPONSE_DELAY_MIN=1000\nRESPONSE_DELAY_MAX=3000'; fs.writeFileSync('.env', env); console.log('[OK] Switched to: '+(acc.username||acc.email)); } else { console.log('[ERROR] Invalid account number'); } } catch(e) { console.log('[ERROR]', e.message); } } else { console.log('[ERROR] Invalid choice'); }"
 
 echo.
 pause
@@ -538,8 +538,8 @@ echo if (currentEmail) { >> edit_temp.cjs
 echo   let accounts = []; >> edit_temp.cjs
 echo   if (fs.existsSync('config/accounts.json')) { >> edit_temp.cjs
 echo     const data = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8')); >> edit_temp.cjs
-echo     accounts = Array.isArray(data) ? data : (data.accounts || []); >> edit_temp.cjs
-echo     const idx = accounts.findIndex(a => a.email === currentEmail); >> edit_temp.cjs
+echo     accounts = Array.isArray(data) ? data : (data.accounts ^|^| []); >> edit_temp.cjs
+echo     const idx = accounts.findIndex(a =^> a.email === currentEmail); >> edit_temp.cjs
 echo     if (idx !== -1) accounts[idx].ofLink = '%NEW_OF_LINK%'; >> edit_temp.cjs
 echo   } >> edit_temp.cjs
 echo   fs.writeFileSync('config/accounts.json', JSON.stringify(accounts, null, 2)); >> edit_temp.cjs
@@ -550,10 +550,6 @@ endlocal
 
 node edit_temp.cjs
 del /F /Q edit_temp.cjs >nul 2>&1
-
-echo.
-pause
-goto MAIN_MENU
 
 echo.
 pause
