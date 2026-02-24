@@ -45,5 +45,12 @@
     "lastMessageId": "[ ] hello",
     "messageCount": 1,
     "ofLinkSent": false
+  },
+  "1475771752289275956": {
+    "startTime": 1771921857098,
+    "lastUserMessageTime": 1771922073621,
+    "lastMessageId": "do you like to play golf?",
+    "messageCount": 5,
+    "ofLinkSent": false
   }
 }

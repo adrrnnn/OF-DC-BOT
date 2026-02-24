@@ -96,7 +96,12 @@ set /p PASSWORD="Enter Discord Password: "
 set /p SETUP_OF_LINK="Enter OnlyFans Link (press Enter to use https://onlyfans.com): "
 if "!SETUP_OF_LINK!"=="" set SETUP_OF_LINK=https://onlyfans.com
 
-REM Save account data to temporary file to safely escape special characters
+REM Create required directories if they don't exist
+if not exist "config" mkdir config
+if not exist "data" mkdir data
+if not exist "logs" mkdir logs
+
+REM Save account data and .env file with percent expansion (handles special chars)
 setlocal disabledelayedexpansion
 (
     echo [
@@ -107,20 +112,37 @@ setlocal disabledelayedexpansion
     echo     "ofLink": "%SETUP_OF_LINK%"
     echo   }
     echo ]
-) > config/accounts.json
-setlocal enabledelayedexpansion
+) > config\accounts.json
 
-REM Create .env with this account
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo ERROR: Failed to create accounts.json
+    echo Please check folder permissions and try again.
+    echo.
+    pause
+    goto SETUP_NEW_ACCOUNT
+)
+
 (
-echo DISCORD_EMAIL=!EMAIL!
-echo DISCORD_PASSWORD=!PASSWORD!
-echo BOT_USERNAME=!USERNAME!
-echo OF_LINK=!SETUP_OF_LINK!
+echo DISCORD_EMAIL=%EMAIL%
+echo DISCORD_PASSWORD=%PASSWORD%
+echo BOT_USERNAME=%USERNAME%
+echo OF_LINK=%SETUP_OF_LINK%
 echo API_PROXY_URL=https://discord-bot-api-proxy.mma12personal.workers.dev
 echo CHECK_DMS_INTERVAL=5000
 echo RESPONSE_DELAY_MIN=1000
 echo RESPONSE_DELAY_MAX=3000
 ) > .env
+
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo ERROR: Failed to create .env
+    echo Please check folder permissions and try again.
+    echo.
+    pause
+    goto SETUP_NEW_ACCOUNT
+)
+endlocal
 
 echo.
 echo [OK] Discord account saved!
@@ -223,30 +245,25 @@ if "%choice%"=="4" (
 REM Email Edit
 if "%choice%"=="1" (
     set /p NEWEMAIL="Enter new Email: "
-    node --input-type=commonjs -e "
-    const fs = require('fs');
-    try {
-        const data = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8'));
-        const accounts = Array.isArray(data) ? data : (data.accounts || []);
-        const envContent = fs.readFileSync('.env', 'utf8');
-        const currentEmailMatch = envContent.match(/DISCORD_EMAIL=(.+)/);
-        const currentEmail = currentEmailMatch ? currentEmailMatch[1].trim() : null;
-        
-        if (currentEmail) {
-            const idx = accounts.findIndex(a => a.email === currentEmail);
-            if (idx !== -1) {
-                accounts[idx].email = '!NEWEMAIL!';
-                fs.writeFileSync('config/accounts.json', JSON.stringify(accounts, null, 2));
-            }
-        }
-        
-        const newEnv = envContent.replace(/DISCORD_EMAIL=.*/m, 'DISCORD_EMAIL=!NEWEMAIL!');
-        fs.writeFileSync('.env', newEnv);
-        console.log('[OK] Email updated!');
-    } catch (e) {
-        console.error('[ERROR]', e.message);
-    }
-    "
+    setlocal disabledelayedexpansion
+    echo const fs = require('fs'); > edit_temp.cjs
+    echo const env = fs.readFileSync('.env', 'utf8'); >> edit_temp.cjs
+    echo const match = env.match(/DISCORD_EMAIL=(.+)/); >> edit_temp.cjs
+    echo const currentEmail = match ? match[1].trim() : null; >> edit_temp.cjs
+    echo if (currentEmail) { >> edit_temp.cjs
+    echo   let accounts = []; >> edit_temp.cjs
+    echo   if (fs.existsSync('config/accounts.json')) { >> edit_temp.cjs
+    echo     const data = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8')); >> edit_temp.cjs
+    echo     accounts = Array.isArray(data) ? data : (data.accounts || []); >> edit_temp.cjs
+    echo     const idx = accounts.findIndex(a => a.email === currentEmail); >> edit_temp.cjs
+    echo     if (idx !== -1) accounts[idx].email = '%NEWEMAIL%'; >> edit_temp.cjs
+    echo   } >> edit_temp.cjs
+    echo   fs.writeFileSync('config/accounts.json', JSON.stringify(accounts, null, 2)); >> edit_temp.cjs
+    echo   fs.writeFileSync('.env', env.replace(/DISCORD_EMAIL=.*/m, 'DISCORD_EMAIL=%NEWEMAIL%')); >> edit_temp.cjs
+    echo } >> edit_temp.cjs
+    endlocal
+    node edit_temp.cjs
+    del /F /Q edit_temp.cjs >nul 2>&1
     pause
     goto EDIT_CURRENT
 )
@@ -254,30 +271,26 @@ if "%choice%"=="1" (
 REM Username Edit
 if "%choice%"=="2" (
     set /p NEWUSERNAME="Enter new Username: "
-    node --input-type=commonjs -e "
-    const fs = require('fs');
-    try {
-        const data = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8'));
-        const accounts = Array.isArray(data) ? data : (data.accounts || []);
-        const envContent = fs.readFileSync('.env', 'utf8');
-        const currentEmailMatch = envContent.match(/DISCORD_EMAIL=(.+)/);
-        const currentEmail = currentEmailMatch ? currentEmailMatch[1].trim() : null;
-        
-        if (currentEmail) {
-            const idx = accounts.findIndex(a => a.email === currentEmail);
-            if (idx !== -1) {
-                accounts[idx].username = '!NEWUSERNAME!';
-                fs.writeFileSync('config/accounts.json', JSON.stringify(accounts, null, 2));
-            }
-        }
-        
-        const newEnv = envContent.replace(/BOT_USERNAME=.*/m, 'BOT_USERNAME=!NEWUSERNAME!');
-        fs.writeFileSync('.env', newEnv);
-        console.log('[OK] Username updated!');
-    } catch (e) {
-        console.error('[ERROR]', e.message);
-    }
-    "
+    setlocal disabledelayedexpansion
+    echo const fs = require('fs'); > edit_temp.cjs
+    echo const env = fs.readFileSync('.env', 'utf8'); >> edit_temp.cjs
+    echo const match = env.match(/DISCORD_EMAIL=(.+)/); >> edit_temp.cjs
+    echo const currentEmail = match ? match[1].trim() : null; >> edit_temp.cjs
+    echo if (currentEmail) { >> edit_temp.cjs
+    echo   let accounts = []; >> edit_temp.cjs
+    echo   if (fs.existsSync('config/accounts.json')) { >> edit_temp.cjs
+    echo     const data = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8')); >> edit_temp.cjs
+    echo     accounts = Array.isArray(data) ? data : (data.accounts || []); >> edit_temp.cjs
+    echo     const idx = accounts.findIndex(a => a.email === currentEmail); >> edit_temp.cjs
+    echo     if (idx !== -1) accounts[idx].username = '%NEWUSERNAME%'; >> edit_temp.cjs
+    echo   } >> edit_temp.cjs
+    echo   fs.writeFileSync('config/accounts.json', JSON.stringify(accounts, null, 2)); >> edit_temp.cjs
+    echo   fs.writeFileSync('.env', env.replace(/BOT_USERNAME=.*/m, 'BOT_USERNAME=%NEWUSERNAME%')); >> edit_temp.cjs
+    echo   console.log('[OK] Username updated!'); >> edit_temp.cjs
+    echo } >> edit_temp.cjs
+    endlocal
+    node edit_temp.cjs
+    del /F /Q edit_temp.cjs >nul 2>&1
     pause
     goto EDIT_CURRENT
 )
@@ -285,30 +298,26 @@ if "%choice%"=="2" (
 REM Password Edit
 if "%choice%"=="3" (
     set /p NEWPASSWORD="Enter new Password: "
-    node --input-type=commonjs -e "
-    const fs = require('fs');
-    try {
-        const data = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8'));
-        const accounts = Array.isArray(data) ? data : (data.accounts || []);
-        const envContent = fs.readFileSync('.env', 'utf8');
-        const currentEmailMatch = envContent.match(/DISCORD_EMAIL=(.+)/);
-        const currentEmail = currentEmailMatch ? currentEmailMatch[1].trim() : null;
-        
-        if (currentEmail) {
-            const idx = accounts.findIndex(a => a.email === currentEmail);
-            if (idx !== -1) {
-                accounts[idx].password = '!NEWPASSWORD!';
-                fs.writeFileSync('config/accounts.json', JSON.stringify(accounts, null, 2));
-            }
-        }
-        
-        const newEnv = envContent.replace(/DISCORD_PASSWORD=.*/m, 'DISCORD_PASSWORD=!NEWPASSWORD!');
-        fs.writeFileSync('.env', newEnv);
-        console.log('[OK] Password updated!');
-    } catch (e) {
-        console.error('[ERROR]', e.message);
-    }
-    "
+    setlocal disabledelayedexpansion
+    echo const fs = require('fs'); > edit_temp.cjs
+    echo const env = fs.readFileSync('.env', 'utf8'); >> edit_temp.cjs
+    echo const match = env.match(/DISCORD_EMAIL=(.+)/); >> edit_temp.cjs
+    echo const currentEmail = match ? match[1].trim() : null; >> edit_temp.cjs
+    echo if (currentEmail) { >> edit_temp.cjs
+    echo   let accounts = []; >> edit_temp.cjs
+    echo   if (fs.existsSync('config/accounts.json')) { >> edit_temp.cjs
+    echo     const data = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8')); >> edit_temp.cjs
+    echo     accounts = Array.isArray(data) ? data : (data.accounts || []); >> edit_temp.cjs
+    echo     const idx = accounts.findIndex(a => a.email === currentEmail); >> edit_temp.cjs
+    echo     if (idx !== -1) accounts[idx].password = '%NEWPASSWORD%'; >> edit_temp.cjs
+    echo   } >> edit_temp.cjs
+    echo   fs.writeFileSync('config/accounts.json', JSON.stringify(accounts, null, 2)); >> edit_temp.cjs
+    echo   fs.writeFileSync('.env', env.replace(/DISCORD_PASSWORD=.*/m, 'DISCORD_PASSWORD=%NEWPASSWORD%')); >> edit_temp.cjs
+    echo   console.log('[OK] Password updated!'); >> edit_temp.cjs
+    echo } >> edit_temp.cjs
+    endlocal
+    node edit_temp.cjs
+    del /F /Q edit_temp.cjs >nul 2>&1
     pause
     goto EDIT_CURRENT
 )
@@ -328,32 +337,37 @@ echo.
 set /p USERNAME="Enter Discord Username: "
 set /p EMAIL="Enter Discord Email: "
 set /p PASSWORD="Enter Discord Password: "
-set /p OF_LINK="Enter OnlyFans Link: "
+set /p OF_LINK="Enter OnlyFans Link (default: https://onlyfans.com): "
+if "%OF_LINK%"=="" set OF_LINK=https://onlyfans.com
 
-node --input-type=commonjs -e "
-const fs = require('fs');
-try {
-    let accounts = [];
-    if (fs.existsSync('config/accounts.json')) {
-        const data = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8'));
-        accounts = Array.isArray(data) ? data : (data.accounts || []);
-    }
-    accounts.push({ 
-        username: '!USERNAME!', 
-        email: '!EMAIL!', 
-        password: '!PASSWORD!', 
-        ofLink: '!OF_LINK!' 
-    });
-    fs.writeFileSync('config/accounts.json', JSON.stringify(accounts, null, 2));
-    console.log('[OK] Account added to database!');
-} catch (e) {
-    console.error('[ERROR]', e.message);
-}
-"
+setlocal disabledelayedexpansion
+echo const fs = require('fs'); > add_temp.cjs
+echo let accounts = []; >> add_temp.cjs
+echo if (fs.existsSync('config/accounts.json')) { >> add_temp.cjs
+echo   const data = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8')); >> add_temp.cjs
+echo   accounts = Array.isArray(data) ? data : (data.accounts || []); >> add_temp.cjs
+echo } >> add_temp.cjs
+echo accounts.push({ username: '%USERNAME%', email: '%EMAIL%', password: '%PASSWORD%', ofLink: '%OF_LINK%' }); >> add_temp.cjs
+echo fs.writeFileSync('config/accounts.json', JSON.stringify(accounts, null, 2)); >> add_temp.cjs
+endlocal
 
+node add_temp.cjs
+if %ERRORLEVEL% NEQ 0 goto ADD_NEW_ACCOUNT_ERROR
+del /F /Q add_temp.cjs >nul 2>&1
+
+echo.
+echo [OK] Discord account added successfully!
 echo.
 pause
 goto CONFIGURE_ACCOUNT
+
+:ADD_NEW_ACCOUNT_ERROR
+del /F /Q add_temp.cjs >nul 2>&1
+echo.
+echo ERROR: Failed to add account.
+echo.
+pause
+goto ADD_NEW_ACCOUNT
 
 :LIST_ACCOUNTS
 cls
@@ -512,33 +526,34 @@ echo ========================================
 echo.
 for /f "tokens=2 delims==" %%a in ('type .env ^| find "OF_LINK"') do echo Current OF_LINK: %%a
 echo.
-set /p NEW_OF_LINK="Enter new OF_LINK (or press Enter to cancel): "
-if "%NEW_OF_LINK%"=="" goto MAIN_MENU
+set /p NEW_OF_LINK="Enter new OF_LINK (or press Enter to use default): "
+if "%NEW_OF_LINK%"=="" set NEW_OF_LINK=https://onlyfans.com
 
-node --input-type=commonjs -e "
-const fs = require('fs');
-try {
-    const data = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8'));
-    const accounts = Array.isArray(data) ? data : (data.accounts || []);
-    const envContent = fs.readFileSync('.env', 'utf8');
-    const currentEmailMatch = envContent.match(/DISCORD_EMAIL=(.+)/);
-    const currentEmail = currentEmailMatch ? currentEmailMatch[1].trim() : null;
-    
-    if (currentEmail) {
-        const idx = accounts.findIndex(a => a.email === currentEmail);
-        if (idx !== -1) {
-            accounts[idx].ofLink = '!NEW_OF_LINK!';
-            fs.writeFileSync('config/accounts.json', JSON.stringify(accounts, null, 2));
-        }
-    }
-    
-    const newEnv = envContent.replace(/OF_LINK=.+/, 'OF_LINK=!NEW_OF_LINK!');
-    fs.writeFileSync('.env', newEnv);
-    console.log('[OK] OF_LINK updated!');
-} catch (e) {
-    console.error('[ERROR]', e.message);
-}
-"
+setlocal disabledelayedexpansion
+echo const fs = require('fs'); > edit_temp.cjs
+echo const env = fs.readFileSync('.env', 'utf8'); >> edit_temp.cjs
+echo const match = env.match(/DISCORD_EMAIL=(.+)/); >> edit_temp.cjs
+echo const currentEmail = match ? match[1].trim() : null; >> edit_temp.cjs
+echo if (currentEmail) { >> edit_temp.cjs
+echo   let accounts = []; >> edit_temp.cjs
+echo   if (fs.existsSync('config/accounts.json')) { >> edit_temp.cjs
+echo     const data = JSON.parse(fs.readFileSync('config/accounts.json', 'utf8')); >> edit_temp.cjs
+echo     accounts = Array.isArray(data) ? data : (data.accounts || []); >> edit_temp.cjs
+echo     const idx = accounts.findIndex(a => a.email === currentEmail); >> edit_temp.cjs
+echo     if (idx !== -1) accounts[idx].ofLink = '%NEW_OF_LINK%'; >> edit_temp.cjs
+echo   } >> edit_temp.cjs
+echo   fs.writeFileSync('config/accounts.json', JSON.stringify(accounts, null, 2)); >> edit_temp.cjs
+echo } >> edit_temp.cjs
+echo fs.writeFileSync('.env', env.replace(/OF_LINK=.+/m, 'OF_LINK=%NEW_OF_LINK%')); >> edit_temp.cjs
+echo console.log('[OK] OF_LINK updated!'); >> edit_temp.cjs
+endlocal
+
+node edit_temp.cjs
+del /F /Q edit_temp.cjs >nul 2>&1
+
+echo.
+pause
+goto MAIN_MENU
 
 echo.
 pause
