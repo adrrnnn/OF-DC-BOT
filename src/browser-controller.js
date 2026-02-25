@@ -786,10 +786,10 @@ export class BrowserController {
             let author = 'Unknown';
             let content = '';
             
-            // Extract author
+            // Extract author (use full visible username, including spaces)
             const authorSpan = article.querySelector('span[role="button"]');
             if (authorSpan) {
-              author = authorSpan.textContent.trim().split(/\s+/)[0];
+              author = authorSpan.textContent.trim();
             }
             
             // Extract content

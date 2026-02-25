@@ -612,17 +612,16 @@ class DiscordOFBot {
       if (!this.startupComplete) {
         logger.debug(`Startup mode: Scanning DM from ${username || userId} but not responding yet`);
         const messages = await this.browser.getMessagesWithRetry(10, 10, this.browser.botUsername, this.sentMessages);
-        
+
         // Mark all messages as processed so they won't trigger responses later
         if (messages.length > 0) {
-          let seenSet = this.lastSeenArticles.get(userId);
-          if (!seenSet) {
-            seenSet = new Set();
-            this.lastSeenArticles.set(userId, seenSet);
+          // Use the latest articleHTML as the last seen article for this user
+          const lastMsgWithHtml = [...messages].reverse().find(m => m.articleHTML);
+          if (lastMsgWithHtml && lastMsgWithHtml.articleHTML) {
+            this.lastSeenArticles.set(userId, lastMsgWithHtml.articleHTML);
           }
-          
+
           for (const msg of messages) {
-            seenSet.add(msg.content);
             // CRITICAL: Check if message contains OF link during startup
             // If so, close the conversation to prevent re-processing
             if (msg.hasOFLink) {
@@ -930,7 +929,11 @@ class DiscordOFBot {
 
     } catch (error) {
       logger.error(`Error processing DM: ${error.message}`);
-      this.responsePending[userId] = false;
+
+      const dmUserId = dm && dm.userId;
+      if (dmUserId) {
+        this.responsePending[dmUserId] = false;
+      }
       this.inConversationWith = null;
     }
   }

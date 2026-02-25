@@ -1,51 +1,21 @@
 [
   {
     "name": "locale",
-    "value": "ru",
+    "value": "en-GB",
     "domain": "discord.com",
     "path": "/",
     "expires": -1,
-    "size": 8,
+    "size": 11,
     "httpOnly": false,
     "secure": false,
     "session": true,
+    "priority": "Medium",
     "sameParty": false,
-    "sourceScheme": "Secure",
-    "sourcePort": 443
-  },
-  {
-    "name": "__sdcfduid",
-    "value": "61fd6a91115b11f1a81cc78930768f2b7135a10d1bdf70a756e271b1d056a8f6c7c03684273b71b78ac27924a3845e21",
-    "domain": "discord.com",
-    "path": "/",
-    "expires": 1806481961.614919,
-    "size": 106,
-    "httpOnly": true,
-    "secure": true,
-    "session": false,
-    "sameSite": "Lax",
-    "sameParty": false,
-    "sourceScheme": "Secure",
-    "sourcePort": 443
-  },
-  {
-    "name": "__dcfduid",
-    "value": "61fd6a90115b11f1a81cc78930768f2b",
-    "domain": "discord.com",
-    "path": "/",
-    "expires": 1806481961.614803,
-    "size": 41,
-    "httpOnly": true,
-    "secure": true,
-    "session": false,
-    "sameSite": "Lax",
-    "sameParty": false,
-    "sourceScheme": "Secure",
-    "sourcePort": 443
+    "sourceScheme": "Secure"
   },
   {
     "name": "_cfuvid",
-    "value": "7Vm1Xod4AsFP_vjVcwn.bIu_R_AmgtUVtxYnEX.YH14-1771921962.8376136-1.0.1.1-PdiKmjfXgxSBgSdjcYniJpmytmS39KdvOlIg_t5v9i8",
+    "value": "B0ONB.sSxTnjjfLa0Qxqfyvl8qp0sSOiSMwUWmBFodQ-1772038734.0001204-1.0.1.1-OS1J7M_4FPIc7DCz76Tl.Eni7sE_q5ACRatYwuFUiTk",
     "domain": ".discord.com",
     "path": "/",
     "expires": -1,
@@ -54,8 +24,38 @@
     "secure": true,
     "session": true,
     "sameSite": "None",
+    "priority": "Medium",
     "sameParty": false,
-    "sourceScheme": "Secure",
-    "sourcePort": 443
+    "sourceScheme": "Secure"
+  },
+  {
+    "name": "__dcfduid",
+    "value": "421a0c40126b11f195a70b10c449b7e1",
+    "domain": "discord.com",
+    "path": "/",
+    "expires": 1806598730.869088,
+    "size": 41,
+    "httpOnly": true,
+    "secure": true,
+    "session": false,
+    "sameSite": "Lax",
+    "priority": "Medium",
+    "sameParty": false,
+    "sourceScheme": "Secure"
+  },
+  {
+    "name": "__sdcfduid",
+    "value": "421a0c41126b11f195a70b10c449b7e1c5dc87ca9484c0a6d8599ed7604576eab4f84c34ecffbf70fd88e6138c3178f4",
+    "domain": "discord.com",
+    "path": "/",
+    "expires": 1806598730.869268,
+    "size": 106,
+    "httpOnly": true,
+    "secure": true,
+    "session": false,
+    "sameSite": "Lax",
+    "priority": "Medium",
+    "sameParty": false,
+    "sourceScheme": "Secure"
   }
 ]
