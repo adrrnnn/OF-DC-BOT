@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { logger } from './logger.js';
+import OpenAI from 'openai';
 
 /**
  * Template Matcher - Matches user messages using training data and templates
@@ -21,6 +22,22 @@ export class TemplateMatcher {
     
     // Load training data if available
     this.trainingData = this.loadTrainingData();
+
+    // Semantic embeddings for training data ( Phase 2 )
+    this.semanticEmbeddings = this.loadSemanticEmbeddings();
+    this.embeddingModel = 'text-embedding-3-small';
+    this.openaiClient = null;
+    const openaiKey = process.env.OPENAI_API_KEY || null;
+    if (openaiKey) {
+      try {
+        this.openaiClient = new OpenAI({ apiKey: openaiKey });
+        logger.info('OpenAI client initialized for semantic template matching');
+      } catch (error) {
+        logger.warn(`Failed to initialize OpenAI client for embeddings: ${error.message}`);
+      }
+    } else {
+      logger.warn('OPENAI_API_KEY not set - semantic template matching will be disabled');
+    }
   }
 
   /**
@@ -139,6 +156,32 @@ REMEMBER: You are ${name}, ${age}, from ${location}. Answer their questions dire
   }
 
   /**
+   * Load precomputed semantic embeddings for training examples (if available)
+   */
+  loadSemanticEmbeddings() {
+    try {
+      const embeddingsPath = path.join(process.cwd(), 'data', 'training-embeddings.json');
+      if (!fs.existsSync(embeddingsPath)) {
+        logger.warn('training-embeddings.json not found - semantic matching will be skipped');
+        return null;
+      }
+
+      const raw = fs.readFileSync(embeddingsPath, 'utf8');
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed.entries) || parsed.entries.length === 0) {
+        logger.warn('training-embeddings.json has no entries - semantic matching will be skipped');
+        return null;
+      }
+
+      logger.info(`Loaded ${parsed.entries.length} semantic training examples for template matching`);
+      return parsed;
+    } catch (error) {
+      logger.warn(`Failed to load semantic embeddings: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
    * Calculate similarity between two strings using simple word overlap
    * Returns a score between 0 and 1
    */
@@ -197,16 +240,104 @@ REMEMBER: You are ${name}, ${age}, from ${location}. Answer their questions dire
   }
 
   /**
-   * Find matching template based on user message (legacy template system)
+   * Get semantic match using embeddings over training examples
+   * Returns a match object similar to training data match or null
+   */
+  async findSemanticMatch(userMessage) {
+    try {
+      if (!this.semanticEmbeddings || !this.openaiClient) {
+        return null;
+      }
+
+      const trimmed = (userMessage || '').trim();
+      if (!trimmed) {
+        return null;
+      }
+
+      const embedResponse = await this.openaiClient.embeddings.create({
+        model: this.embeddingModel,
+        input: trimmed
+      });
+
+      const userVector = embedResponse?.data?.[0]?.embedding;
+      if (!userVector || !Array.isArray(userVector)) {
+        logger.warn('Semantic match: no embedding returned for user message');
+        return null;
+      }
+
+      let bestEntry = null;
+      let bestScore = 0;
+
+      const entries = this.semanticEmbeddings.entries || [];
+      for (const entry of entries) {
+        if (!Array.isArray(entry.embedding)) continue;
+        const score = this.cosineSimilarity(userVector, entry.embedding);
+        if (score > bestScore) {
+          bestScore = score;
+          bestEntry = entry;
+        }
+      }
+
+      // Require reasonably high similarity to avoid random matches
+      const MIN_SIMILARITY = 0.75;
+      if (!bestEntry || bestScore < MIN_SIMILARITY) {
+        return null;
+      }
+
+      const response = bestEntry.response || bestEntry.user_message || 'ok';
+      const templateId = bestEntry.context || bestEntry.intent || 'semantic_training_data';
+
+      logger.debug(
+        `[Semantic Match] Matched context="${templateId}" with similarity=${bestScore.toFixed(2)}`
+      );
+
+      return {
+        templateId,
+        response,
+        sendLink: false,
+        followUp: false,
+        confidence: bestScore,
+        source: 'semantic_training_data'
+      };
+    } catch (error) {
+      logger.warn(`Semantic match failed: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Cosine similarity between two equal-length vectors
+   */
+  cosineSimilarity(a, b) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) {
+      return 0;
+    }
+    let dot = 0;
+    let normA = 0;
+    let normB = 0;
+    for (let i = 0; i < a.length; i++) {
+      const va = a[i];
+      const vb = b[i];
+      dot += va * vb;
+      normA += va * va;
+      normB += vb * vb;
+    }
+    if (normA === 0 || normB === 0) return 0;
+    return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+  }
+
+  /**
+   * Find matching template based on user message
    * Returns: { templateId, response, sendLink, followUp } or null
    * 
    * PRIORITY ORDER:
    * 1. EXACT phrase matches (highest priority, especially redirects)
    * 2. REDIRECT templates with sendLink (pics, video call, meetup, sexual content)
-   * 3. Training data matches
-   * 4. Regular templates
+   * 3. Semantic training-data match (embeddings)
+   * 4. Training data matches (lexical)
+   * 5. Regular templates
    */
-  findMatch(userMessage) {
+  async findMatch(userMessage) {
     const msg = userMessage.toLowerCase().trim();
 
     // PRIORITY 1: Check EXACT phrase matches FIRST (these are critical redirects)
@@ -268,13 +399,19 @@ REMEMBER: You are ${name}, ${age}, from ${location}. Answer their questions dire
       };
     }
 
-    // PRIORITY 3: Try training data
+    // PRIORITY 3: Semantic training-data match (embeddings)
+    const semanticMatch = await this.findSemanticMatch(userMessage);
+    if (semanticMatch && semanticMatch.confidence > 0.6) {
+      return semanticMatch;
+    }
+
+    // PRIORITY 4: Try lexical training data match
     const trainingMatch = this.findTrainingDataMatch(userMessage);
     if (trainingMatch && trainingMatch.confidence > 0.4) {
       return trainingMatch;
     }
 
-    // PRIORITY 4: Check remaining hardcoded templates (non-redirect) for word boundary/substring matches
+    // PRIORITY 5: Check remaining hardcoded templates (non-redirect) for word boundary/substring matches
     let bestTemplate = null;
     let bestTriggerLength = 0;
 
@@ -308,22 +445,46 @@ REMEMBER: You are ${name}, ${age}, from ${location}. Answer their questions dire
       };
     }
 
-    // PRIORITY 5: No match - will use AI
+    // PRIORITY 6: No match - will use AI
     return null;
   }
 
   /**
-   * Check if message is sexual/horny content (should send OF link)
+   * Check if message is an explicit request that should trigger OF link
+   * (pics/nudes, sexting/dirty talk, meetup/hookup, video/voice call).
    */
   isSexualContent(message) {
-    const sexualKeywords = [
-      'pussy', 'tits', 'boobs', 'ass', 'nudes', 'naked', 'horny', 
-      'dick', 'cock', 'fuck', 'sex', 'nipples', 'feet', 'cum',
-      'send pic', 'show me', 'can i see', 'want to see', 'send video', 'trade',
-      'trade pics', 'send vids', 'sext', 'nsfw', 'explicit', 'intimate'
-    ];
+    if (!message) return false;
+
     const lower = message.toLowerCase();
-    return sexualKeywords.some(kw => lower.includes(kw));
+
+    // Allow-list: clearly innocent "can I see your pet" style messages
+    const safePetRequestPatterns = [
+      /can i see (?:your\s+)?(?:cat|dog|pet|pets|kitty|kitten|puppy)/i,
+      /can i see (?:a\s+)?picture of (?:your\s+)?(?:cat|dog|pet|pets|kitty|kitten|puppy)/i
+    ];
+
+    const isSafePetRequest = safePetRequestPatterns.some((re) => re.test(message));
+
+    if (isSafePetRequest) {
+      return false;
+    }
+
+    // Pattern-based requests like "can I see ..." / "show me ..." / "let's meet" etc.
+    const explicitRequestPatterns = [
+      /can i see (?:you|more|nudes?|pics?|a pic|boobs?|tits?|ass|pussy|dick|cock|cum|something sexy)/i,
+      /want to see (?:you|more|nudes?|pics?|a pic|boobs?|tits?|ass|pussy|dick|cock|cum|something sexy)/i,
+      /show me (?:you|more|nudes?|pics?|a pic|boobs?|tits?|ass|pussy|dick|cock|cum|something sexy)/i,
+      /send (?:me )?(?:nudes?|pics?|a pic|video|vids?)/i,
+      /trade (?:pics?|nudes?|photos?|vids?)/i,
+      /(sext|talk dirty|chat dirty|roleplay|turn me on)/i,
+      /(meet up|meetup|hook ?up|come over|netflix and chill|in person)/i,
+      /(video call|voice call|discord call|facetime|vc|on camera|on video)/i
+    ];
+
+    const hasExplicitPattern = explicitRequestPatterns.some((re) => re.test(message));
+
+    return hasExplicitPattern;
   }
   
   /**
@@ -334,7 +495,7 @@ REMEMBER: You are ${name}, ${age}, from ${location}. Answer their questions dire
     const socialMediaKeywords = [
       'snap', 'snapchat', 'instagram', 'insta', 'twitter', 'tiktok', 'youtube',
       'phone', 'number', 'text me', 'dm me', 'email', 'contact',
-      'add me', 'find me', 'where are you', 'where can i find',
+      'add me', 'find me', 'where can i find',
       'your socials', 'socials',  'your handle', 'your username',
       'bio', 'link', 'links', 'url', 'website', 'page'
     ];

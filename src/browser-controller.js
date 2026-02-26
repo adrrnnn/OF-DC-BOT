@@ -779,6 +779,7 @@ export class BrowserController {
 
         // Extract ONLY the latest 1 article
         let processedCount = 0;
+        let lastAuthor = null; // Track last known author for grouped messages
         
         for (let i = articles.length - 1; i >= 0 && processedCount < 1; i--) {
           const article = articles[i];
@@ -786,14 +787,53 @@ export class BrowserController {
             let author = 'Unknown';
             let content = '';
             
-            // Extract author (use full visible username, including spaces)
-            const authorSpan = article.querySelector('span[role="button"]');
-            if (authorSpan) {
-              author = authorSpan.textContent.trim();
+            // Extract author (robust): prefer username in header, then aria-labelledby, then fallback
+            const header = article.querySelector('h3.header_c19a55') || article.closest('h3.header_c19a55');
+            let headerAuthorSpan = null;
+            if (header) {
+              headerAuthorSpan =
+                header.querySelector('.username_c19a55[role="button"]') ||
+                header.querySelector('span[role="button"]');
+            }
+            
+            if (headerAuthorSpan && headerAuthorSpan.textContent) {
+              author = headerAuthorSpan.textContent.trim();
+            } else {
+              const authorSpan = article.querySelector('span[role="button"]');
+              if (authorSpan && authorSpan.textContent) {
+                author = authorSpan.textContent.trim();
+              }
+            }
+            
+            // Fallback: use aria-labelledby to find the header username element
+            if ((!author || author === 'Unknown') && article.hasAttribute('aria-labelledby')) {
+              const labelledBy = article.getAttribute('aria-labelledby') || '';
+              const headerId = labelledBy.split(/\s+/).find(id => id.startsWith('message-username-'));
+              if (headerId) {
+                const headerEl = document.getElementById(headerId);
+                if (headerEl && headerEl.textContent) {
+                  author = headerEl.textContent.trim();
+                }
+              }
+            }
+            
+            // Fallback: inherit last known author for grouped messages
+            if ((!author || author === 'Unknown') && lastAuthor) {
+              author = lastAuthor;
+            }
+            if (author && author !== 'Unknown') {
+              lastAuthor = author;
             }
             
             // Extract content
-            const allText = article.innerText || article.textContent;
+            // Prefer the actual message body container to avoid hover toolbars
+            // (reaction buttons, "Click to react", "Add Reaction", "Forward", etc.)
+            const contentRoot =
+              article.querySelector('[id^="message-content-"]') ||
+              article.querySelector('.markup__75297.messageContent_c19a55');
+            const allText = (contentRoot && (contentRoot.innerText || contentRoot.textContent)) ||
+                            article.innerText ||
+                            article.textContent;
             const lines = allText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
             
             const contentLines = [];
@@ -803,6 +843,10 @@ export class BrowserController {
               if (/^\[\d{1,2}:\d{2}\]$/.test(line)) continue;
               if (/^\s*—\s*$/.test(line)) continue;
               if (/^(Edit|Delete|Reply|More)$/.test(line)) continue;
+              // Explicitly ignore hover-toolbar labels in case they appear in text
+              if (/Click to react/.test(line)) continue;
+              if (/^Add Reaction$/.test(line)) continue;
+              if (/^Forward$/.test(line)) continue;
               if (author && line === author) continue;
               if (/г\.\s+в\s+\d{1,2}:\d{2}/.test(line)) continue;
               if (/^\d{1,2}\s+(January|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)/i.test(line)) continue;
@@ -819,15 +863,41 @@ export class BrowserController {
             if (author && content.toLowerCase().startsWith(author.toLowerCase())) {
               content = content.replace(new RegExp(`^${author}\\s+`, 'i'), '').trim();
             }
+
+            // Detect non-avatar image attachments inside the message accessories container.
+            // Any img inside the accessories block counts as an attachment (emojis in text
+            // are part of the main content area and won't be matched here).
+            let hasImageAttachment = false;
+            const accessories = article.querySelector('[id^="message-accessories-"]');
+            if (accessories) {
+              const attachmentImgs = accessories.querySelectorAll('img');
+              if (attachmentImgs && attachmentImgs.length > 0) {
+                hasImageAttachment = true;
+              }
+            }
+
+            // If there is no meaningful text but there IS an image attachment, still create
+            // a synthetic message so downstream logic can react (e.g. image redirect).
+            if ((!content || content.length <= 1) && hasImageAttachment) {
+              content = '[image]';
+            }
             
-            // Only add if there's actual content (message text)
+            // Only add if there's actual content OR an image attachment
             // Author validation happens in processDM
-            if (content && content.length > 1) {
-              // Skip bot messages by username
-              if (botUsername && author && author.toLowerCase() === botUsername.toLowerCase()) {
-                debug.errors.push('Message is from bot, skipping');
-                processedCount++;
-                continue;
+            if ((content && content.length > 1) || hasImageAttachment) {
+              // Skip bot messages by username (tolerate server tags / decorations)
+              if (botUsername && author) {
+                const normBot = botUsername.toLowerCase().trim();
+                const normAuthor = author.toLowerCase().trim();
+                const isBotAuthor =
+                  normAuthor === normBot ||
+                  normAuthor.startsWith(normBot + ' ') ||
+                  normAuthor.startsWith(normBot);
+                if (isBotAuthor) {
+                  debug.errors.push('Message is from bot, skipping');
+                  processedCount++;
+                  continue;
+                }
               }
               
               // CRITICAL: Strip any leading [ ] or [ content ] prefixes for self-response check
@@ -882,6 +952,7 @@ export class BrowserController {
                 author, 
                 content, 
                 hasOFLink: /onlyfans|of\s*link/i.test(content),
+                hasImageAttachment,
                 articleHTML: article.outerHTML
               });
               debug.messagesExtracted++;

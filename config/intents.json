@@ -1,0 +1,113 @@
+{
+  "intents": [
+    {
+      "name": "greeting",
+      "description": "User is saying hi, hello, or opening a friendly conversation.",
+      "examples": [
+        "hi",
+        "hey",
+        "hello",
+        "yo",
+        "hey there",
+        "hiii"
+      ]
+    },
+    {
+      "name": "neutral_small_talk",
+      "description": "User is making small talk, asking how you are, talking about their day, hobbies, or general life with no sexual or OF-specific request.",
+      "examples": [
+        "how are you",
+        "what are you doing",
+        "how was your day",
+        "i'm just chilling",
+        "i love cats",
+        "im from texas"
+      ]
+    },
+    {
+      "name": "sexual_request",
+      "description": "User expresses clear sexual interest or desire for sexual conversation or acts.",
+      "examples": [
+        "im horny",
+        "talk dirty to me",
+        "wanna fuck",
+        "can we sext",
+        "turn me on"
+      ]
+    },
+    {
+      "name": "explicit_photo_request",
+      "description": "User explicitly asks for sexual or explicit photos or videos.",
+      "examples": [
+        "send nudes",
+        "send pics",
+        "can i see your boobs",
+        "show me your tits",
+        "send me a sexy pic",
+        "send a nude video"
+      ]
+    },
+    {
+      "name": "social_media_request",
+      "description": "User asks for other contact methods or socials (snapchat, instagram, phone, etc.).",
+      "examples": [
+        "whats your snap",
+        "add me on insta",
+        "give me your number",
+        "text me instead",
+        "can i add you on snapchat"
+      ]
+    },
+    {
+      "name": "avoid_of",
+      "description": "User is trying to avoid using OnlyFans or prefers to keep chatting on Discord instead of going to OF.",
+      "examples": [
+        "can we just talk here",
+        "i dont wanna use of",
+        "i dont have onlyfans",
+        "id rather stay on discord",
+        "lets just chat here"
+      ]
+    },
+    {
+      "name": "refuse_of",
+      "description": "User refuses or clearly rejects the idea of going to OnlyFans or subscribing after the link has been sent.",
+      "examples": [
+        "im not making an account",
+        "i dont use onlyfans",
+        "too expensive",
+        "no thanks im good",
+        "im not interested in of"
+      ]
+    },
+    {
+      "name": "underage",
+      "description": "User claims to be under 18 or a minor.",
+      "examples": [
+        "im 16",
+        "im only 15",
+        "im a minor",
+        "im underage"
+      ]
+    },
+    {
+      "name": "illegal",
+      "description": "User is asking for obviously illegal or harmful activities.",
+      "examples": [
+        "can you get me drugs",
+        "i need a fake id",
+        "can you help me blackmail someone"
+      ]
+    },
+    {
+      "name": "other",
+      "description": "Anything that does not clearly fit the other intents or is too ambiguous.",
+      "examples": [
+        "random message",
+        "idk",
+        "maybe later"
+      ]
+    }
+  ]
+}
+

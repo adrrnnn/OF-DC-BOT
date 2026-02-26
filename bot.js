@@ -695,8 +695,14 @@ class DiscordOFBot {
             return false;
           }
           
-          // Skip bot's own messages
-          if (author.toLowerCase() === botUsername.toLowerCase()) {
+          // Skip bot's own messages (tolerate server tags / decorations)
+          const normBot = botUsername.toLowerCase().trim();
+          const normAuthor = author.toLowerCase().trim();
+          const isBotAuthor =
+            normAuthor === normBot ||
+            normAuthor.startsWith(normBot + ' ') ||
+            normAuthor.startsWith(normBot);
+          if (isBotAuthor) {
             return false;
           }
           
@@ -845,7 +851,10 @@ class DiscordOFBot {
       // Handle the message (generates exactly 1 response)
       const response = await this.messageHandler.handleDM(
         userId,
-        latestUserMessage.content
+        cleanMessageText,
+        {
+          hasImageAttachment: latestUserMessage.hasImageAttachment === true
+        }
       );
 
       let messageSent = false;
@@ -964,8 +973,34 @@ class DiscordOFBot {
       // CRITICAL: Check if we already responded to this user
       // If responsePending is set, a response is in flight - don't reprocess
       if (this.responsePending[userId]) {
-        logger.debug(`⏱️  Response already pending for ${username}, skipping collection timer reprocess`);
-        this.articleQueues.delete(userId);
+        logger.debug(`⏱️  Response already pending for ${username}, deferring collection and preserving queue`);
+
+        // #region agent log
+        fetch('http://127.0.0.1:7621/ingest/69741164-9fc4-4e86-b1ea-caba7a62d14c',{
+          method:'POST',
+          headers:{
+            'Content-Type':'application/json',
+            'X-Debug-Session-Id':'71a30f'
+          },
+          body:JSON.stringify({
+            sessionId:'71a30f',
+            location:'bot.js:startMessageCollectionTimer',
+            message:'Deferred message collection because response is pending',
+            data:{
+              userId,
+              username,
+              queuedArticles:(this.articleQueues.get(userId) || []).map(a => a.content)
+            },
+            hypothesisId:'H_queue_preserved',
+            runId:'collection-timeout',
+            timestamp:Date.now()
+          })
+        }).catch(()=>{});
+        // #endregion
+
+        // Do NOT drop queued articles; instead restart the timer so they will be
+        // processed once the current response has finished.
+        this.startMessageCollectionTimer(dm);
         return;
       }
       
@@ -976,6 +1011,8 @@ class DiscordOFBot {
         const combinedContent = accumulatedArticles
           .map(article => article.content)
           .join(' ');
+
+        const hasImageAttachment = accumulatedArticles.some(a => a.hasImageAttachment);
         
         logger.debug(`Combined ${accumulatedArticles.length} articles into 1 message: "${combinedContent}"`);
         
@@ -983,7 +1020,8 @@ class DiscordOFBot {
         this.pendingCombinedMessages.set(userId, {
           author: accumulatedArticles[0].author,
           content: combinedContent,
-          hasOFLink: accumulatedArticles.some(a => a.hasOFLink)
+          hasOFLink: accumulatedArticles.some(a => a.hasOFLink),
+          hasImageAttachment
         });
         
         // Clear the queue

@@ -14,7 +14,7 @@
     },
     {
       "id": "meetup_redirect",
-      "triggers": ["meet", "meetup", "hook up", "come over", "visit", "in person", "meet up sometime", "netflix and chill", "netflix chill", "hang out"],
+      "triggers": ["meetup", "meet up", "hook up", "hookup", "come over", "visit", "in person", "meet up sometime", "netflix and chill", "netflix chill"],
       "responses": [
         "hmm we'll see lets continue our convo here hehe",
         "thats for my OF people hehe",
@@ -25,7 +25,7 @@
     },
     {
       "id": "video_call_redirect",
-      "triggers": ["video call", "videocall", "voice call", "call", "facetime", "zoom", "skype", "discord call", "ft", "vc", "cam", "on camera", "on video", "stream"],
+      "triggers": ["video call", "videocall", "voice call", "facetime", "zoom", "skype", "discord call", "ft", "vc", "on camera", "on video", "stream"],
       "responses": [
         "hmm we'll see lets continue our convo here hehe",
         "i only do that on OF babe :p",
@@ -44,11 +44,11 @@
         "lol someones excited hehe i dont do that here tho",
         "youre bold :p but nah not here"
       ],
-      "sendLink": true
+      "sendLink": false
     },
     {
       "id": "sexting_request_redirect",
-      "triggers": ["sext", "dirty", "roleplay", "talk dirty", "chat dirty", "turn me on"],
+      "triggers": ["sext", "roleplay", "talk dirty", "chat dirty", "turn me on"],
       "responses": [
         "i keep that on onlyfans hehe its free :p",
         "i keep spicy stuff on OF",
@@ -58,7 +58,7 @@
     },
     {
       "id": "pics_request_redirect",
-      "triggers": ["send pics", "send nudes", "show me", "send photo", "send me pics", "pics please", "nudes"],
+      "triggers": ["send pics", "send nudes", "send photo", "send me pics", "pics please", "nudes", "nude", "send a pic", "send a photo", "send a video", "send vids", "send nudes pls"],
       "responses": [
         "hehe i keep those on OF its free :p",
         "lol im not sending that here",
@@ -70,21 +70,21 @@
       "id": "snapchat_redirect",
       "triggers": ["whats your snap", "snap me", "add me on snap", "give me your number", "text me", "phone", "dm me", "your snap", "what's your snap"],
       "responses": [
-        "i keep everything on OF honestly",
-        "thats what OF is for babe :p",
-        "all my contact stuff is on OF"
+        "i dont really give out my snap or number tbh",
+        "sorryy i keep my contact private",
+        "i dont share my snap/number on here"
       ],
-      "sendLink": true
+      "sendLink": false
     },
     {
       "id": "onlyfans_question",
       "triggers": ["do you sell", "are you a creator", "do you do onlyfans", "are you on onlyfans", "onlyfans"],
       "responses": [
-        "yeah i do :p its free to sub tho",
-        "yeah babe its free :3",
-        "yess its free to check out"
+        "yeah i do :p",
+        "yep",
+        "yesss"
       ],
-      "sendLink": true
+      "sendLink": false
     }
   ],
   "ofLinkMessage": "its free to sub :3\n{OF_LINK}",

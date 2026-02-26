@@ -32,9 +32,11 @@ export class MessageHandler {
    * Priority: Template Matcher → AI (no intent classifier)
    * Strategy: Use pre-written scripts first, AI only when no template matches
    */
-  async handleDM(userId, userMessage) {
+  async handleDM(userId, userMessage, options = {}) {
     try {
       logger.info(`Message from ${userId}: "${userMessage}"`);
+
+      const { hasImageAttachment = false } = options;
 
       // SAFEGUARD: Check for underage claims
       if (this.aiHandler.isUnderage(userMessage)) {
@@ -70,6 +72,50 @@ export class MessageHandler {
         };
       }
 
+      // If the user sent an image attachment, short-circuit the funnel and
+      // use the \"blurred/ISP\" message from the funnel doc.
+      if (hasImageAttachment) {
+        logger.info(`🖼️  Image attachment detected from ${userId} - using image redirect flow`);
+
+        const ofLink = process.env.OF_LINK;
+        const baseMessage = `oh thats blurred for me, maybe my ISP is blocking it, maybe send it here? :3`;
+
+        let finalMessage = baseMessage;
+        let hasOFLink = false;
+
+        if (ofLink) {
+          const linkMessage = this.templateMatcher.getOFLinkMessage(ofLink);
+          finalMessage = `${baseMessage}\n\n${linkMessage}`;
+          hasOFLink = true;
+        }
+
+        if (hasOFLink) {
+          // Mark that we sent the OF link so refusal/close logic still works.
+          this.conversationManager.markOFLinkSent(userId);
+          logger.info(`📤 OF LINK SENT (image redirect) to ${userId}`);
+        }
+
+        return {
+          userId,
+          message: finalMessage,
+          source: 'image_redirect',
+          hasOFLink,
+          closeChat: true
+        };
+      }
+
+      // INTENT CLASSIFICATION (LLM-based, for OF-link decisions and funnel logic)
+      const intentResult = await this.aiHandler.classifyIntent(userMessage);
+      if (intentResult) {
+        logger.info(
+          `Intent for ${userId}: primary="${intentResult.primary_intent}", confidence=${intentResult.confidence.toFixed(
+            2
+          )}, secondary=[${intentResult.secondary_intents.join(', ')}]`
+        );
+      } else {
+        logger.info(`Intent for ${userId}: classifier unavailable or failed (fallback to heuristics)`);
+      }
+
       // CRITICAL: Check if we've already sent the OF link to this user
       // If yes, check if they're refusing or permanently blocked
       const conversationData = this.conversationManager.getConversationState(userId);
@@ -80,8 +126,22 @@ export class MessageHandler {
       }
       
       if (conversationData && conversationData.hasOFLink) {
-        // They already got the OF link - use AI to check if they're refusing
-        const isRefusing = await this.isRefusingOF(userMessage);
+        // They already got the OF link - use intent or AI to check if they're refusing
+        let isRefusing = false;
+        if (intentResult && intentResult.primary_intent === 'refuse_of') {
+          isRefusing = true;
+          logger.info('🤖 Intent classifier: User is REFUSING OF');
+        } else if (
+          intentResult &&
+          Array.isArray(intentResult.secondary_intents) &&
+          intentResult.secondary_intents.includes('refuse_of')
+        ) {
+          isRefusing = true;
+          logger.info('🤖 Intent classifier: User is REFUSING OF (secondary intent)');
+        } else {
+          // Fallback: old AI-based refusal detector
+          isRefusing = await this.isRefusingOF(userMessage);
+        }
         if (isRefusing) {
           logger.info(`\n=== STAGE 3: USER REFUSING OFF OFFER ===`);
           logger.info(`👋 REFUSAL DETECTED from ${userId}: "${userMessage.substring(0, 50)}..."`);
@@ -120,25 +180,26 @@ export class MessageHandler {
       }
 
       // Check if user is trying to chat on Discord instead of OF - REDIRECT AGGRESSIVELY
-      if (this.isAvoidingOF(userMessage)) {
-        // Aggressive redirect - they're trying to avoid OF
-        logger.info(`User ${userId} trying to avoid OF - sending aggressive redirect (OF link trigger)`);
-        const ofLink = process.env.OF_LINK;
-        const redirectMessage = `nah baby all the fun stuff is on my OF hehe\nits free to sub :3\n${ofLink}\nlmk when u do ok? <33`;
-        
-        // Mark that we sent link - DO NOT end conversation, keep record for restart detection
-        this.conversationManager.markOFLinkSent(userId);
-        
-        const delay = this.getRandomDelay();
-        await new Promise(r => setTimeout(r, delay));
-        
-        return {
-          userId,
-          message: redirectMessage,
-          source: 'aggressive_redirect',
-          hasOFLink: true,
-          closeChat: true
-        };
+      let isAvoiding = false;
+      if (intentResult && intentResult.primary_intent === 'avoid_of') {
+        isAvoiding = true;
+        logger.info('🤖 Intent classifier: User is AVOIDING OF');
+      } else if (
+        intentResult &&
+        Array.isArray(intentResult.secondary_intents) &&
+        intentResult.secondary_intents.includes('avoid_of')
+      ) {
+        isAvoiding = true;
+        logger.info('🤖 Intent classifier: User is AVOIDING OF (secondary intent)');
+      } else {
+        // Fallback: legacy heuristic
+        isAvoiding = this.isAvoidingOF(userMessage);
+      }
+
+      if (isAvoiding) {
+        // Per funnel rules: do NOT push the OF link unless they explicitly ask for sext/pics/meetup/call.
+        // If they want to keep chatting here, we just continue normally.
+        logger.info(`User ${userId} is avoiding OF - continuing without OF link`);
       }
 
       let response;
@@ -147,7 +208,7 @@ export class MessageHandler {
 
       // ALWAYS use AI for responses (template is just context)
       // Template matching helps provide context to the AI, but we never skip AI
-      const match = this.templateMatcher.findMatch(userMessage);
+      const match = await this.templateMatcher.findMatch(userMessage);
       
       if (match && match.confidence >= 0.5) {
         logger.info(`\n=== STAGE 1: GENERATING RESPONSE ===`);
@@ -156,20 +217,25 @@ export class MessageHandler {
         logger.info(`\n=== STAGE 1: GENERATING RESPONSE ===`);
       }
 
-      // ALWAYS call AI with the user message and system prompt
-      logger.info('Calling AI to generate response...');
-      response = await this.aiHandler.generateResponse(
+      // ALWAYS call AI with the user message and system prompt (structured JSON)
+      logger.info('Calling AI to generate structured response...');
+      const structured = await this.aiHandler.generateStructuredResponse(
         userMessage,
         this.templateMatcher.getSystemPrompt()
       );
       
-      // Check if API keys are dead/exhausted
-      if (!response) {
-        logger.error('❌ API key error - No API keys available. Add more credits or generate new API key.');
+      // Check if API keys are dead/exhausted or structured call failed
+      if (!structured || !structured.reply) {
+        logger.error('❌ Structured AI response failed or empty. Add more credits or generate new API key.');
         return null; // Skip this user entirely
       }
       
+      response = structured.reply;
       source = 'ai_gemini';
+
+      // Apply funnel rules to avoid inviting long, pointless conversations
+      // (e.g. remove trailing phrases like "but we can chat here")
+      response = this.applyFunnelResponseRules(response, userMessage);
       
       // Check if template indicated this should send OF link
       if (match && match.sendLink) {
@@ -177,26 +243,20 @@ export class MessageHandler {
         logger.info(`\n=== STAGE 2: TRIGGERING OF LINK ===`);
         logger.info(`🔗 Template has sendLink flag - OF link will be triggered`);
       }
-      
-      // Check if user message contains sexual content (independent of template)
-      if (this.templateMatcher.isSexualContent(userMessage)) {
+
+      // Structured AI can explicitly request sending the OF link (only for sext/pics/meetup/call per prompt)
+      if (structured.should_send_of_link === true) {
         shouldSendLink = true;
         logger.info(`\n=== STAGE 2: TRIGGERING OF LINK ===`);
-        logger.info(`🔥 Sexual/explicit content detected from ${userId} - OF link trigger activated`);
+        logger.info(`🤖 Structured AI requested OF link (explicit request detected)`);
       }
-      
-      // Check if user is asking for social media/contact info (independent of template)
-      if (this.templateMatcher.isSocialMediaRequest(userMessage)) {
+
+      // Fallback heuristic: explicit request patterns (pics/nudes, sexting, meetup, video call)
+      // (TemplateMatcher.isSexualContent is intentionally request-pattern-only.)
+      if (!shouldSendLink && this.templateMatcher.isSexualContent(userMessage)) {
         shouldSendLink = true;
         logger.info(`\n=== STAGE 2: TRIGGERING OF LINK ===`);
-        logger.info(`🔗 Social media/contact request detected from ${userId} - OF link trigger activated`);
-      }
-      
-      // Check if AI response mentions OF/OnlyFans
-      if (response && this.mentionsOnlyFans(response)) {
-        shouldSendLink = true;
-        logger.info(`\n=== STAGE 2: TRIGGERING OF LINK ===`);
-        logger.info(`🔗 AI response mentions OnlyFans for ${userId} - OF link trigger activated`);
+        logger.info(`🔥 Explicit request detected (heuristic) - OF link trigger activated`);
       }
 
       // SAFEGUARD: Check if AI response leaked social media/contact info despite prompt
@@ -258,6 +318,87 @@ export class MessageHandler {
     return Math.floor(
       Math.random() * (this.responseDelay.max - this.responseDelay.min) + this.responseDelay.min
     );
+  }
+
+  /**
+   * Apply simple post-processing rules to AI responses
+   * to keep them short and avoid inviting long chats.
+   */
+  applyFunnelResponseRules(response, userMessage) {
+    if (!response) return response;
+
+    const original = response;
+    const lower = response.toLowerCase();
+    const patterns = [
+      'but we can just chat here',
+      'but we can chat here',
+      'but we can just talk here',
+      'but we can talk here',
+      'but we can keep chatting here',
+      "but i'm down to chat here",
+      "but im down to chat here",
+      "but i'm happy to chat here",
+      "but im happy to chat here"
+    ];
+
+    let matchedPattern = null;
+
+    for (const pattern of patterns) {
+      const idx = lower.indexOf(pattern);
+      if (idx !== -1) {
+        // Trim everything from the start of the pattern onwards
+        response = response.slice(0, idx);
+        matchedPattern = pattern;
+        break;
+      }
+    }
+
+    // If no explicit phrase matched, fall back to a more generic pattern:
+    // any clause starting with "but" that goes on to mention chatting/talking/vibing here/in the chat.
+    if (!matchedPattern) {
+      const softInviteRegexes = [
+        /\bbut\b[^.!?]{0,120}\b(chat|talk|vibing)\b[^.!?]{0,60}\b(here|in the chat)\b/i,
+        /\bbut\b[^.!?]{0,120}\b(here in (?:dms|discord)|keep this here)\b/i
+      ];
+
+      for (const re of softInviteRegexes) {
+        const match = lower.match(re);
+        if (match && typeof match.index === 'number') {
+          response = response.slice(0, match.index);
+          matchedPattern = re.toString();
+          break;
+        }
+      }
+    }
+
+    // Clean up trailing commas/whitespace if we truncated
+    response = response.replace(/[,\s]+$/u, '');
+
+    // #region agent log
+    fetch('http://127.0.0.1:7621/ingest/69741164-9fc4-4e86-b1ea-caba7a62d14c',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'X-Debug-Session-Id':'71a30f'
+      },
+      body:JSON.stringify({
+        sessionId:'71a30f',
+        location:'message-handler.js:applyFunnelResponseRules',
+        message:'Funnel response post-processing',
+        data:{
+          userMessage,
+          originalResponse:original,
+          finalResponse:response,
+          matchedPattern
+        },
+        hypothesisId:'H1',
+        runId:'post-process',
+        timestamp:Date.now()
+      })
+    }).catch(()=>{});
+    // #endregion
+
+    return response;
   }
 
   /**
