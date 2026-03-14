@@ -65,6 +65,8 @@ class DiscordOFBot {
     this.lastSeenArticles = new Map(); // Track last article we extracted per user to detect new ones [PERSISTED]
     this.pendingCombinedMessages = new Map(); // Store combined message waiting for processDM
     this.startupComplete = false; // Flag to prevent responding to old history on startup
+    this.unreadSkipUntil = new Map(); // Temporarily skip DMs after repeated empty extractions
+    this.processDMInProgress = false; // Only one processDM at a time to prevent double reply to same conversation
     
     // Load persisted state on startup
     this.loadBotState();
@@ -409,7 +411,21 @@ class DiscordOFBot {
             this.inConversationWith = null;
             // Continue to check other DMs
           } else {
+            // While processDM is running, it owns DM navigation and message extraction.
+            // Do not run checkDMForNewMessages in parallel for the current conversation,
+            // or we risk overlapping getMessagesWithRetry loops and navigating away
+            // from the DM that processDM is replying in.
+            if (this.processDMInProgress) {
+              logger.debug('processDM in progress - skipping current-conversation check');
+              return;
+            }
+
             const dm = { userId: this.inConversationWith, username: `user_${this.inConversationWith.substring(0, 8)}` };
+            // Don't check other DMs or navigate while we're still sending a response for this user
+            if (this.responsePending[this.inConversationWith]) {
+              logger.debug('Response pending for current conversation - skipping DM scan until send completes');
+              return;
+            }
             const hasNewMessages = await this.checkDMForNewMessages(dm);
             
             if (hasNewMessages) {
@@ -417,64 +433,101 @@ class DiscordOFBot {
               // START COLLECTION TIMER: Wait a bit for more lines before responding
               this.idleManager.signalActivity(); // Signal activity - switch to ACTIVE polling
               this.startMessageCollectionTimer(dm);
+              return; // Don't check other DMs while we have new messages to process
             }
-            return; // Don't check other DMs while in conversation
+            // No new messages from current user - leave conversation and check other DMs (e.g. Kimberrr with unread)
+            logger.info(`No new messages from current conversation - checking other DMs for unread`);
+            this.inConversationWith = null;
+            // Fall through to getUnreadDMs and process DMs with unread
           }
+        }
+
+        // If any user has a response in flight, pause the entire DM scan until it completes.
+        // This avoids redundant work (getUnreadDMs, checkDMHasUnreadMessages for 5–10 DMs)
+        // and prevents double-processing the same conversation.
+        const anyResponsePending = Object.values(this.responsePending).some(Boolean);
+        if (anyResponsePending) {
+          logger.debug('Response pending for some user - skipping DM scan until send completes');
+          return;
+        }
+
+        // If processDM is running (opening DM, waiting for AI, etc.), do NOT run the scan.
+        // checkDMHasUnreadMessages does page.goto to each DM; that would navigate away from
+        // the conversation we're replying to and cause the next send to go to the wrong user.
+        if (this.processDMInProgress) {
+          logger.debug('processDM in progress - skipping DM scan to avoid navigating away');
+          return;
         }
 
         // Get unread DMs
         const unreadDMs = await this.browser.getUnreadDMs();
         
-        // FILTER: Remove permanently closed conversations from processing list
+        // FILTER: Remove permanently closed conversations and temporarily skipped DMs
+        const now = Date.now();
         const activeUnreadDMs = unreadDMs.filter(dm => {
           const isPermanentlyClosed = this.conversationManager.isPermanentlyClosed(dm.userId);
           if (isPermanentlyClosed) {
             logger.debug(`Skipping permanently closed conversation: ${dm.username || dm.userId}`);
+            return false;
           }
-          return !isPermanentlyClosed;
+
+          const skipUntil = this.unreadSkipUntil.get(dm.userId);
+          if (skipUntil && skipUntil > now) {
+            logger.debug(`Temporarily skipping DM due to recent empty extraction: ${dm.username || dm.userId}`);
+            return false;
+          }
+
+          return true;
         });
 
         if (activeUnreadDMs.length > 0) {
           logger.info(`Found ${activeUnreadDMs.length} unread DM(s)`);
 
-          // Check each DM to find which one has actual unread messages
-          let dmWithUnread = null;
+          // Check each DM to find which ones have actual unread messages.
+          // IMPORTANT CHANGE: process *all* DMs that appear to have unread,
+          // instead of just the first one, and remove the "first in list" fallback
+          // that caused starvation of other users like Aegis.
+          let anyProcessed = false;
           for (const dm of activeUnreadDMs) {
             const hasUnread = await this.browser.checkDMHasUnreadMessages(dm.userId);
-            if (hasUnread) {
-              dmWithUnread = dm;
-              
-              // Identify account type (test vs normal)
-              const username = dm.username || dm.userId;
-              const isTestAccount = this.testAccounts.includes(username.toLowerCase());
-              const accountType = isTestAccount ? '[TEST ACCOUNT]' : '[NORMAL ACCOUNT]';
-              
-              // Check conversation state
-              const isPermanentlyClosed = this.conversationManager.isPermanentlyClosed(dm.userId);
-              const ofLinkSent = this.conversationManager.hasOFLinkBeenSent(dm.userId);
-              
-              let stateInfo = '';
-              if (isPermanentlyClosed) {
-                stateInfo = '(CLOSED FOREVER)';
-              } else if (ofLinkSent) {
-                stateInfo = '(OF LINK SENT - AWAITING RESPONSE)';
-              } else {
-                stateInfo = '(ACTIVE)';
-              }
-              
-              logger.info(`✓ ${accountType} ${username} ${stateInfo} - Found unread message`);
-              break;
+
+            if (!hasUnread) {
+              continue;
             }
+
+            // Identify account type (test vs normal)
+            const username = dm.username || dm.userId;
+            const isTestAccount = this.testAccounts.includes(username.toLowerCase());
+            const accountType = isTestAccount ? '[TEST ACCOUNT]' : '[NORMAL ACCOUNT]';
+            
+            // Check conversation state
+            const isPermanentlyClosed = this.conversationManager.isPermanentlyClosed(dm.userId);
+            const ofLinkSent = this.conversationManager.hasOFLinkBeenSent(dm.userId);
+            
+            let stateInfo = '';
+            if (isPermanentlyClosed) {
+              stateInfo = '(CLOSED FOREVER)';
+            } else if (ofLinkSent) {
+              stateInfo = '(OF LINK SENT - AWAITING RESPONSE)';
+            } else {
+              stateInfo = '(ACTIVE)';
+            }
+            
+            logger.info(`✓ ${accountType} ${username} ${stateInfo} - Found unread message`);
+
+            await this.processDM(dm);
+            anyProcessed = true;
           }
 
-          // Process the DM with unread, or first in list as fallback
-          if (dmWithUnread) {
-            await this.processDM(dmWithUnread);
-          } else if (activeUnreadDMs.length > 0) {
-            logger.debug(`No DMs with confirmed unread, processing first in list`);
-            await this.processDM(activeUnreadDMs[0]);
-          } else {
-            logger.debug(`All active DMs have been processed or closed (no fallback available)`);
+          if (!anyProcessed) {
+            logger.debug(`No DMs with confirmed unread after scanning ${activeUnreadDMs.length} candidates`);
+
+            // Fallback: process each active DM once (we already skipped this entire
+            // cycle if any response was pending, so no need to re-check per DM).
+            for (const dm of activeUnreadDMs) {
+              logger.info(`Fallback processing DM without confirmed unread: ${dm.username || dm.userId}`);
+              await this.processDM(dm);
+            }
           }
             
             // After first check completes, mark startup as complete
@@ -604,9 +657,13 @@ class DiscordOFBot {
    * Process an unread DM
    */
   async processDM(dm) {
+    let { userId, username } = dm;
+    if (this.processDMInProgress) {
+      logger.debug(`Skipping processDM for ${username || userId} - another processDM already in progress`);
+      return;
+    }
+    this.processDMInProgress = true;
     try {
-      let { userId, username } = dm;
-
       // DURING STARTUP: Just scan and mark messages as processed, don't respond yet
       // This prevents bot from replying to old history on first boot
       if (!this.startupComplete) {
@@ -675,11 +732,18 @@ class DiscordOFBot {
         const messages = await this.browser.getMessagesWithRetry(1, 10, this.browser.botUsername, this.sentMessages);
         if (messages.length === 0) {
           logger.warn(`No messages found in DM with ${username}`);
+          // After repeated empty extractions for a DM (e.g. only our own messages
+          // are visible), temporarily skip this DM when scanning for unread so
+          // we can move on to other users instead of looping forever.
+          const backoffMs = 5 * 60 * 1000; // 5 minutes
+          this.unreadSkipUntil.set(userId, Date.now() + backoffMs);
           this.inConversationWith = null;
           return;
         }
 
         logger.debug(`Found ${messages.length} message(s): ${JSON.stringify(messages)}`);
+        // We successfully saw real messages again; clear any temporary skip.
+        this.unreadSkipUntil.delete(userId);
 
         // Get latest USER message (not our own)
         const botUsername = this.browser.botUsername || 'You';
@@ -841,11 +905,8 @@ class DiscordOFBot {
         }
       }
 
-      // Mark message as processed BEFORE handling to prevent race conditions
-      this.conversationManager.setLastMessageId(userId, cleanMessageText);
+      // responsePending prevents re-processing during wait-to-send period
       this.lastResponseTime.set(userId, Date.now());
-      
-      // Mark response as pending (prevents re-processing during wait-to-send period)
       this.responsePending[userId] = true;
 
       // Handle the message (generates exactly 1 response)
@@ -873,6 +934,9 @@ class DiscordOFBot {
           logger.info(
             `✅ Response sent to ${extractedUsername} (source: ${response.source}, hasOFLink: ${response.hasOFLink})`
           );
+          
+          // Mark message as processed ONLY after successful send (so failed sends can retry)
+          this.conversationManager.setLastMessageId(userId, cleanMessageText);
           
           this.idleManager.setActive(); // Keep bot in ACTIVE mode after sending response
           
@@ -944,6 +1008,8 @@ class DiscordOFBot {
         this.responsePending[dmUserId] = false;
       }
       this.inConversationWith = null;
+    } finally {
+      this.processDMInProgress = false;
     }
   }
 
@@ -969,34 +1035,30 @@ class DiscordOFBot {
     const timerId = setTimeout(async () => {
       logger.debug(`⏱️  Message collection timeout - processing DM from ${username}`);
       this.messageCollectionTimer.delete(userId);
+
+      // If we're currently in an active conversation with a DIFFERENT user,
+      // defer processing this DM until that conversation yields. This enforces
+      // "current conversation priority": finish the active DM before moving on.
+      const activeConvUserId = this.inConversationWith;
+      if (
+        activeConvUserId &&
+        activeConvUserId !== userId &&
+        this.conversationManager.isConversationActive(activeConvUserId)
+      ) {
+        logger.debug(
+          `⏱️  Active conversation with user_${activeConvUserId.substring(
+            0,
+            8
+          )} - deferring collection for ${username || userId}`
+        );
+        this.startMessageCollectionTimer(dm);
+        return;
+      }
       
       // CRITICAL: Check if we already responded to this user
       // If responsePending is set, a response is in flight - don't reprocess
       if (this.responsePending[userId]) {
         logger.debug(`⏱️  Response already pending for ${username}, deferring collection and preserving queue`);
-
-        // #region agent log
-        fetch('http://127.0.0.1:7621/ingest/69741164-9fc4-4e86-b1ea-caba7a62d14c',{
-          method:'POST',
-          headers:{
-            'Content-Type':'application/json',
-            'X-Debug-Session-Id':'71a30f'
-          },
-          body:JSON.stringify({
-            sessionId:'71a30f',
-            location:'bot.js:startMessageCollectionTimer',
-            message:'Deferred message collection because response is pending',
-            data:{
-              userId,
-              username,
-              queuedArticles:(this.articleQueues.get(userId) || []).map(a => a.content)
-            },
-            hypothesisId:'H_queue_preserved',
-            runId:'collection-timeout',
-            timestamp:Date.now()
-          })
-        }).catch(()=>{});
-        // #endregion
 
         // Do NOT drop queued articles; instead restart the timer so they will be
         // processed once the current response has finished.

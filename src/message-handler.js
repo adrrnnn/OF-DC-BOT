@@ -374,30 +374,6 @@ export class MessageHandler {
     // Clean up trailing commas/whitespace if we truncated
     response = response.replace(/[,\s]+$/u, '');
 
-    // #region agent log
-    fetch('http://127.0.0.1:7621/ingest/69741164-9fc4-4e86-b1ea-caba7a62d14c',{
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'X-Debug-Session-Id':'71a30f'
-      },
-      body:JSON.stringify({
-        sessionId:'71a30f',
-        location:'message-handler.js:applyFunnelResponseRules',
-        message:'Funnel response post-processing',
-        data:{
-          userMessage,
-          originalResponse:original,
-          finalResponse:response,
-          matchedPattern
-        },
-        hypothesisId:'H1',
-        runId:'post-process',
-        timestamp:Date.now()
-      })
-    }).catch(()=>{});
-    // #endregion
-
     return response;
   }
 

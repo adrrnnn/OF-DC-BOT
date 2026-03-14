@@ -90,6 +90,27 @@ export class AIHandler {
   }
 
   /**
+   * Normalize AI proxy responses that are supposed to be JSON.
+   * Some models wrap JSON in markdown code fences like ```json ... ```.
+   * This helper strips common wrappers so JSON.parse has a better chance.
+   */
+  normalizeJSONResponse(raw) {
+    if (!raw) return '';
+    let text = raw.trim();
+
+    // If wrapped in ```json ... ``` or ``` ... ```, strip the fences.
+    // Match the first fenced block only (no ^ $) so trailing text after ``` doesn't break parsing.
+    const fencedMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    if (fencedMatch && fencedMatch[1]) {
+      text = fencedMatch[1].trim();
+    }
+
+    // Some models prepend or append stray markdown/newlines – keep it simple
+    // and just return the cleaned text; JSON.parse will validate it.
+    return text;
+  }
+
+  /**
    * Build conversation context from training examples
    */
   buildConversationContext() {
@@ -191,7 +212,7 @@ Rules:
         return null;
       }
 
-      const raw = (data.response || '').trim();
+      const raw = this.normalizeJSONResponse(data.response || '');
       if (!raw) {
         logger.warn('Intent classifier returned empty response');
         return null;
@@ -385,7 +406,7 @@ Output ONLY the JSON object.`;
         return null;
       }
 
-      let raw = (data.response || '').trim();
+      let raw = this.normalizeJSONResponse(data.response || '');
       if (!raw) {
         logger.warn('Structured response: empty AI response');
         return null;

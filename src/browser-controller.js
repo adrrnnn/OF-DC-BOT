@@ -516,6 +516,14 @@ export class BrowserController {
 
       await new Promise(r => setTimeout(r, 500));
 
+      // Wait for message articles to load (Discord SPA loads async - 500ms often not enough)
+      let articleCount = 0;
+      for (let attempt = 0; attempt < 10; attempt++) {
+        articleCount = await this.page.evaluate(() => document.querySelectorAll('[role="article"]').length).catch(() => 0);
+        if (articleCount > 0) break;
+        await new Promise(r => setTimeout(r, 400));
+      }
+
       // Get the last message
       const lastMessageInfo = await this.page.evaluate(() => {
         const messageElements = Array.from(document.querySelectorAll('[role="article"]'));
@@ -545,8 +553,8 @@ export class BrowserController {
 
       // If last message is from us ("You" or starts with our actions), no unread from user
       const isFromUs = lastMessageInfo.content.includes('You') || lastMessageInfo.fullText.startsWith('You');
-      
-      return !isFromUs; // Return true if NOT from us (i.e., from user)
+      const hasUnread = !isFromUs;
+      return hasUnread; // Return true if NOT from us (i.e., from user)
     } catch (error) {
       logger.debug(`Error checking DM ${userId}: ${error.message}`);
       return false;
@@ -729,7 +737,7 @@ export class BrowserController {
       
       // Extraction failed (0 messages), retry after delay
       if (attempt < maxRetries) {
-        const delayMs = 300 + (attempt * 50); // 350ms, 400ms, 450ms, etc.
+        const delayMs = 5000; // 5 seconds between attempts to allow human response
         logger.debug(`[Attempt ${attempt}/${maxRetries}] Extraction failed, retrying in ${delayMs}ms...`);
         await new Promise(r => setTimeout(r, delayMs));
       }
