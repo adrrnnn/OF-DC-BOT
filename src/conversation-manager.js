@@ -59,11 +59,17 @@ export class ConversationManager {
   isConversationActive(userId) {
     const conv = this.conversations.get(userId);
     if (!conv) return false;
-    
+
+    // Never auto-delete the record while we're waiting post-OF or after a hard close.
+    // Otherwise idle timeout would wipe ofLinkSent / permanentlyClosed and break funnel state.
+    if (conv.permanentlyClosed || conv.ofLinkSent) {
+      return true;
+    }
+
     // 3 minutes idle timeout: if no messages from user for 3+ minutes, close conversation
     const threeMinutes = 3 * 60 * 1000; // 180000 ms
     const timeSinceLastUserMessage = Date.now() - (conv.lastUserMessageTime || conv.startTime);
-    
+
     if (timeSinceLastUserMessage > threeMinutes) {
       this.endConversation(userId);
       return false;
@@ -114,6 +120,38 @@ export class ConversationManager {
   hasOFLinkBeenSent(userId) {
     const conv = this.conversations.get(userId);
     return conv ? conv.ofLinkSent : false;
+  }
+
+  /**
+   * After the OF link was sent, empty DOM extractions (e.g. only bot messages visible)
+   * temporarily skip the DM. After two such skips, permanently close so we stop looping.
+   * @returns {{ closed: boolean, skipCount: number }}
+   */
+  recordEmptyExtractionAfterOF(userId) {
+    const conv = this.conversations.get(userId);
+    if (!conv || !conv.ofLinkSent || conv.permanentlyClosed) {
+      return { closed: false, skipCount: conv?.emptyExtractionSkipsAfterOF || 0 };
+    }
+    conv.emptyExtractionSkipsAfterOF = (conv.emptyExtractionSkipsAfterOF || 0) + 1;
+    logger.info(
+      `📊 Post-OF empty extraction skip #${conv.emptyExtractionSkipsAfterOF} for ${userId}`
+    );
+    if (conv.emptyExtractionSkipsAfterOF >= 2) {
+      this.markPermanentlyClosed(userId);
+      this.saveState();
+      return { closed: true, skipCount: conv.emptyExtractionSkipsAfterOF };
+    }
+    this.saveState();
+    return { closed: false, skipCount: conv.emptyExtractionSkipsAfterOF };
+  }
+
+  /** Reset skip counter when we successfully read messages from the DM again. */
+  resetEmptyExtractionSkipsAfterOF(userId) {
+    const conv = this.conversations.get(userId);
+    if (conv && conv.emptyExtractionSkipsAfterOF) {
+      conv.emptyExtractionSkipsAfterOF = 0;
+      this.saveState();
+    }
   }
 
   markPermanentlyClosed(userId) {

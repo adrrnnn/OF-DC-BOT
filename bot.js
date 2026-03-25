@@ -67,6 +67,11 @@ class DiscordOFBot {
     this.startupComplete = false; // Flag to prevent responding to old history on startup
     this.unreadSkipUntil = new Map(); // Temporarily skip DMs after repeated empty extractions
     this.processDMInProgress = false; // Only one processDM at a time to prevent double reply to same conversation
+
+    // Hard cap for persisted `sentMessages` to prevent unbounded growth.
+    // Uses Set insertion order (oldest inserted entries are evicted first).
+    const maxSentMessages = Number(process.env.SENT_MESSAGES_MAX || 2000);
+    this.sentMessagesMax = Number.isFinite(maxSentMessages) && maxSentMessages > 0 ? maxSentMessages : 2000;
     
     // Load persisted state on startup
     this.loadBotState();
@@ -109,11 +114,30 @@ class DiscordOFBot {
           this.sentMessages = new Set(state.sentMessages);
           logger.debug(`Loaded ${this.sentMessages.size} tracked sent messages`);
         }
+
+        // Ensure state can't grow without bound even if the file is huge.
+        this.pruneSentMessages();
         
         logger.info('✅ Bot state restored from disk');
       }
     } catch (error) {
       logger.warn(`Failed to load bot state: ${error.message} - starting with fresh state`);
+    }
+  }
+
+  /**
+   * Evict oldest tracked sent messages when exceeding `sentMessagesMax`.
+   * Set iteration order reflects insertion order, so this is a FIFO policy.
+   */
+  pruneSentMessages() {
+    if (!this.sentMessages || !(this.sentMessages instanceof Set)) return;
+    const max = this.sentMessagesMax;
+    if (!max || max <= 0) return;
+
+    while (this.sentMessages.size > max) {
+      const oldest = this.sentMessages.values().next().value;
+      if (oldest === undefined) break;
+      this.sentMessages.delete(oldest);
     }
   }
 
@@ -124,6 +148,8 @@ class DiscordOFBot {
    */
   saveBotState() {
     try {
+      // Prevent writing a huge file if the process accumulated messages unexpectedly.
+      this.pruneSentMessages();
       const state = {
         hasRepliedOnce: Object.fromEntries(this.hasRepliedOnce),
         lastSeenArticles: Object.fromEntries(this.lastSeenArticles),
@@ -735,7 +761,25 @@ class DiscordOFBot {
           // After repeated empty extractions for a DM (e.g. only our own messages
           // are visible), temporarily skip this DM when scanning for unread so
           // we can move on to other users instead of looping forever.
-          const backoffMs = 5 * 60 * 1000; // 5 minutes
+          let backoffMs = 5 * 60 * 1000; // 5 minutes (pre-OF or generic empty extraction)
+          if (this.conversationManager.hasOFLinkBeenSent(userId)) {
+            const { closed } = this.conversationManager.recordEmptyExtractionAfterOF(userId);
+            if (closed) {
+              logger.info(
+                `🔒 Permanently closed ${username} after 2 temporary skips (post-OF empty extractions) — no more checks`
+              );
+              this.unreadSkipUntil.delete(userId);
+              this.inConversationWith = null;
+              return;
+            }
+            // Long gap before we retry: user may be away for hours/days (configurable).
+            const longMs = parseInt(process.env.POST_OF_EMPTY_SKIP_BACKOFF_MS || '', 10);
+            backoffMs =
+              Number.isFinite(longMs) && longMs > 0 ? longMs : 10 * 60 * 1000; // default 10m
+            logger.info(
+              `⏳ Post-OF empty extraction: will skip ${username} for ${Math.round(backoffMs / 3600000)}h before next attempt`
+            );
+          }
           this.unreadSkipUntil.set(userId, Date.now() + backoffMs);
           this.inConversationWith = null;
           return;
@@ -744,6 +788,7 @@ class DiscordOFBot {
         logger.debug(`Found ${messages.length} message(s): ${JSON.stringify(messages)}`);
         // We successfully saw real messages again; clear any temporary skip.
         this.unreadSkipUntil.delete(userId);
+        this.conversationManager.resetEmptyExtractionSkipsAfterOF(userId);
 
         // Get latest USER message (not our own)
         const botUsername = this.browser.botUsername || 'You';
@@ -947,6 +992,7 @@ class DiscordOFBot {
           if (normalized !== response.message) {
             this.sentMessages.add(normalized);
           }
+          this.pruneSentMessages();
           
           // CRITICAL: Mark this user as having received their first reply
           // This enables conversation mode (batching, multiple messages, etc.)

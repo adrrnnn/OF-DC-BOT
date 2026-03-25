@@ -210,7 +210,7 @@ for /f "tokens=2 delims==" %%a in ('type .env ^| find "BOT_USERNAME"') do set US
 if "!USERNAME!"=="" set USERNAME=Not set
 
 echo Email:    %EMAIL%
-echo Username: %USERNAME%
+echo Bot Display Name: %USERNAME%
 echo.
 echo [1] Edit This Account
 echo [2] Back
@@ -231,7 +231,7 @@ echo   Edit Current Account
 echo ========================================
 echo.
 echo [1] Change Email
-echo [2] Change Username
+echo [2] Change Bot Display Name
 echo [3] Change Password
 echo [4] Back
 echo.
@@ -256,12 +256,12 @@ if "%choice%"=="1" (
     goto EDIT_CURRENT
 )
 
-REM Username Edit
+REM Bot Display Name Edit
 if "%choice%"=="2" (
-    set /p NEWUSERNAME="Enter new Username: "
+    set /p NEWUSERNAME="Enter new Bot Display Name: "
     if "!NEWUSERNAME!"=="" (
         echo.
-        echo [ERROR] Username cannot be empty. Please enter a valid username.
+        echo [ERROR] Bot Display Name cannot be empty. Please enter a valid bot display name.
         pause
         goto EDIT_CURRENT
     )

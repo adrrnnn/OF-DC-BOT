@@ -1,7 +1,23 @@
 [
   {
+    "name": "cf_clearance",
+    "value": "D5qFfCuUibofN.oVtoHHzb96mys2w8V.L5tg1vLWrBo-1774419284-1.2.1.1-y3HgiUySjROSmz7OYt4J73Hy70IlkVv72FY7UFEp.MTYLmj3rijX_fCNFEGNZqc43pVoSJoCejZvIWNYsd5PBpP.mdJH8jCdL.X5jqi7.a_RY42KBVkWf.UGrgqGsd3nxKNHiQD1ZbUCo5rTu.E8E7fQCFrrMjQnDIHuVMDtPks8oDNHstYag.ERv8gIW4wBaYRNkBDD_Wt7gN2EmTUU8Hxa7.7_PK4jaBJKcH.lWY0",
+    "domain": ".discord.com",
+    "path": "/",
+    "expires": 1805955282.030572,
+    "size": 310,
+    "httpOnly": true,
+    "secure": true,
+    "session": false,
+    "sameSite": "None",
+    "priority": "Medium",
+    "sourceScheme": "Secure",
+    "partitionKey": "https://discord.com",
+    "sameParty": false
+  },
+  {
     "name": "_cfuvid",
-    "value": "BAACvD6O2iwPw7WpC0kNGwtmw5CJS_VH0tvSVRV6Uw8-1772138826.8584683-1.0.1.1-7p38uSr06OOttbhnd8PTgIX3XeHBYE0DM2pWgPbAlE8",
+    "value": "VpFJlYfIk4Gc0aE3626qbyytGpU6Y6j9mkO3ZFcfofs-1774419283.3208504-1.0.1.1-9X.ocDV1SfHg.7PsAHPPR6TMVUdQJeawnKIxpSDG9U4",
     "domain": ".discord.com",
     "path": "/",
     "expires": -1,
@@ -11,38 +27,38 @@
     "session": true,
     "sameSite": "None",
     "priority": "Medium",
-    "sameParty": false,
-    "sourceScheme": "Secure"
+    "sourceScheme": "Secure",
+    "sameParty": false
   },
   {
     "name": "__dcfduid",
-    "value": "43b6f380135411f189c5dd560ab28810",
+    "value": "e5210ea0281111f186079765fc6ce167",
     "domain": "discord.com",
     "path": "/",
-    "expires": 1806698806.473715,
+    "expires": 1808979272.079654,
     "size": 41,
     "httpOnly": true,
     "secure": true,
     "session": false,
     "sameSite": "Lax",
     "priority": "Medium",
-    "sameParty": false,
-    "sourceScheme": "Secure"
+    "sourceScheme": "Secure",
+    "sameParty": false
   },
   {
     "name": "__sdcfduid",
-    "value": "43b6f381135411f189c5dd560ab28810c1ce018bc03f394f5d9c9414c00714fa14f73be945785f9ca80a979ba2286b63",
+    "value": "e5210ea1281111f186079765fc6ce1675cc78ad741af1cc1a57e8e0483786d028791c6ba829775edf17364eec9496245",
     "domain": "discord.com",
     "path": "/",
-    "expires": 1806698806.474276,
+    "expires": 1808979272.079981,
     "size": 106,
     "httpOnly": true,
     "secure": true,
     "session": false,
     "sameSite": "Lax",
     "priority": "Medium",
-    "sameParty": false,
-    "sourceScheme": "Secure"
+    "sourceScheme": "Secure",
+    "sameParty": false
   },
   {
     "name": "locale",
@@ -55,7 +71,7 @@
     "secure": false,
     "session": true,
     "priority": "Medium",
-    "sameParty": false,
-    "sourceScheme": "Secure"
+    "sourceScheme": "Secure",
+    "sameParty": false
   }
 ]

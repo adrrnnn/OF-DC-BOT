@@ -290,7 +290,7 @@ export class BrowserController {
       // Extract bot's own username from logged-in account
       this.botUsername = await this.getBotUsername();
       if (this.botUsername) {
-        logger.info(`Detected bot username: ${this.botUsername}`);
+        logger.info(`Detected bot display name: ${this.botUsername}`);
       }
       
       // Wait for Discord to fully stabilize after auth before navigating
@@ -315,15 +315,15 @@ export class BrowserController {
       // Use BOT_USERNAME from .env (set in start.bat by user)
       const envUsername = process.env.BOT_USERNAME;
       if (envUsername && envUsername !== 'Unknown' && envUsername !== 'You' && envUsername.trim().length > 0) {
-        logger.info(`Bot username: ${envUsername} (from .env)`);
+        logger.info(`Bot display name: ${envUsername} (from .env)`);
         return envUsername;
       }
       
       // Fallback if .env doesn't have it (rare case)
-      logger.warn('BOT_USERNAME not found in .env, using fallback "Bot"');
+      logger.warn('BOT_USERNAME not found in .env, using fallback "Bot" (bot display name)');
       return 'Bot';
     } catch (error) {
-      logger.warn('Error getting bot username:', error.message);
+      logger.warn('Error getting bot display name:', error.message);
       return process.env.BOT_USERNAME || 'Bot';
     }
   }
@@ -749,14 +749,55 @@ export class BrowserController {
   }
 
   /**
+   * Hostnames from OF_LINK (and optional extra list) for detecting promo / OF URLs in message text.
+   */
+  getOfLinkHostsForDetection() {
+    const hosts = [];
+    const raw = (process.env.OF_LINK || '').trim();
+    if (raw) {
+      try {
+        const u = new URL(raw.startsWith('http') ? raw : `https://${raw}`);
+        const h = u.hostname.replace(/^www\./i, '');
+        if (h) hosts.push(h.toLowerCase());
+      } catch {
+        /* ignore bad OF_LINK */
+      }
+    }
+    const extra = (process.env.OF_LINK_EXTRA_HOSTS || '')
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+    for (const h of extra) {
+      if (!hosts.includes(h)) hosts.push(h);
+    }
+    return hosts;
+  }
+
+  /**
    * Get messages from current DM
    */
   async getMessages(limit = 1, botUsername = null, sentMessages = null) {
     try {
       logger.debug('Attempting to extract messages from DOM...');
-      
-      const extractionResult = await this.page.evaluate((limit, botUsername, sentMessages) => {
+
+      const ofLinkHosts = this.getOfLinkHostsForDetection();
+
+      const extractionResult = await this.page.evaluate((limit, botUsername, sentMessages, ofLinkHosts) => {
         const msgs = [];
+
+        function messageHasPromoOrOFLink(text) {
+          if (!text) return false;
+          const t = String(text);
+          const lower = t.toLowerCase();
+          if (/onlyfans\.com/i.test(t) || /\.onlyfans\//i.test(t)) return true;
+          if (/\bof\.com(\/|$)/i.test(t)) return true;
+          if (/\bonlyfans\b/i.test(lower)) return true;
+          if (/of\s*link/i.test(lower)) return true;
+          for (const h of ofLinkHosts || []) {
+            if (h && lower.includes(h)) return true;
+          }
+          return false;
+        }
         const debug = {
           articlesFound: 0,
           messagesExtracted: 0,
@@ -959,7 +1000,7 @@ export class BrowserController {
               msgs.push({ 
                 author, 
                 content, 
-                hasOFLink: /onlyfans|of\s*link/i.test(content),
+                hasOFLink: messageHasPromoOrOFLink(content),
                 hasImageAttachment,
                 articleHTML: article.outerHTML
               });
@@ -975,7 +1016,7 @@ export class BrowserController {
         }
 
         return { messages: msgs, debug };
-      }, limit, botUsername, sentMessages ? Array.from(sentMessages) : []);
+      }, limit, botUsername, sentMessages ? Array.from(sentMessages) : [], ofLinkHosts);
       
       logger.debug(`Extraction result: articles=${extractionResult.debug.articlesFound}, extracted=${extractionResult.debug.messagesExtracted}, errors=${extractionResult.debug.errors.join('; ')}`);
 
